@@ -4,30 +4,31 @@
 #include <pebble-events/pebble-events.h>
 
 static Window *s_main_window;
-static TextLayer *s_time_layer;
-static GFont s_time_font, s_date_font;
-static TextLayer *s_date_layer, *s_stardate_layer, *s_parsec_layer, *s_batterypercent_layer, *s_lifesupport_text_layer, *s_temperature_layer, *s_city_layer;
-static BitmapLayer *s_enterprise_layer, *icon_weather_layer;
+static GFont s_time_font, s_date_font, s_weather_icon_font;
+static TextLayer *s_date_layer, *s_stardate_layer, *s_parsec_layer, *s_batterypercent_layer, *s_lifesupport_text_layer, *s_temperature_layer, *s_city_layer, *icon_weather_layer, *s_time_layer;
+static BitmapLayer *s_enterprise_layer;
 static GBitmap *s_enterprise_bitmap;
-static char s_current_steps_buffer[16];
-static int s_step_count = 0, s_step_goal = 0, s_step_average = 0;
-static int s_battery_level;
-static int s_battery_charging;
-//static int s_width_display;
-static Layer *s_battery_layer, *s_lifesupport_layer, *s_lcars_layer, *s_bt_layer;
 static char api_key[50];
+static int s_step_count = 0, s_step_goal = 0, s_step_average = 0, s_battery_level, s_battery_charging;
+static Layer *s_battery_layer, *s_lifesupport_layer, *s_lcars_layer, *s_bt_layer;
+static bool F_Tick = S_TRUE;
 
 static void read_persist()
 {
-	if(persist_exists(MESSAGE_KEY_OWMAPIKEY))
+	if(persist_exists(MESSAGE_KEY_APIKEY))
 	{
-		persist_read_string(MESSAGE_KEY_OWMAPIKEY, api_key, sizeof(api_key));
+		persist_read_string(MESSAGE_KEY_APIKEY, api_key, sizeof(api_key));
+	}
+	if(persist_exists(MESSAGE_KEY_FTICK))
+	{
+		F_Tick = persist_read_bool(MESSAGE_KEY_FTICK);
 	}
 }
 
 static void store_persist()
 {
-	persist_write_string(MESSAGE_KEY_OWMAPIKEY, api_key);
+	persist_write_string(MESSAGE_KEY_APIKEY, api_key);
+  persist_write_bool(MESSAGE_KEY_FTICK, F_Tick);
 }
 
 static void bluetooth_callback(bool connected) {
@@ -160,13 +161,16 @@ static void weather_callback(GenericWeatherInfo *info, GenericWeatherStatus stat
       text_layer_set_text(s_text_layer, s_buffer);
       snprintf(s_buffer, sizeof(s_buffer),"Temperature (K/C/F): %d/%d/%d\n\nName:\n%s\n\nDescription:\n%s",info->temp_k, info->temp_c, info->temp_f, info->name, info->description);
       text_layer_set_text(s_text_layer, s_buffer);*/
-      snprintf(s_temp_buffer, sizeof(s_temp_buffer),"%d", info->temp_f);
+      if (F_Tick) {
+        snprintf(s_temp_buffer, sizeof(s_temp_buffer),"%d", info->temp_f);}
+      else {
+        snprintf(s_temp_buffer, sizeof(s_temp_buffer),"%d", info->temp_c);}
       text_layer_set_text(s_temperature_layer, s_temp_buffer);
       snprintf(s_city_buffer, sizeof(s_city_buffer),"%s",info->name);
 		snprintf(s_city_buffer_2, sizeof(s_city_buffer_2),"%s.", s_city_buffer);
       text_layer_set_text(s_city_layer, s_city_buffer_2);
 		
-		/*switch(info->condition)
+		switch(info->condition)
 			{
 				case GenericWeatherConditionClearSky:
 					if(info->day)
@@ -212,7 +216,7 @@ static void weather_callback(GenericWeatherInfo *info, GenericWeatherStatus stat
 				case GenericWeatherConditionUnknown:
 					text_layer_set_text(icon_weather_layer, "");
 					break;
-			}*/
+			}
     }
       break;
     case GenericWeatherStatusNotYetFetched:
@@ -299,7 +303,8 @@ static void window_load(Window *window) {
   // Create GFonts
   s_date_font = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_LCARS_32));
   s_time_font = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_LCARS_64));
-
+  s_weather_icon_font = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_WEATHERICON_38));
+  
     // Create the TextLayer with specific bounds
   s_time_layer = text_layer_create(GRect(30, 80, bounds.size.w, 80));
   // Create GFont
@@ -331,14 +336,25 @@ static void window_load(Window *window) {
   // Add it as a child layer to the Window's root layer
   layer_add_child(window_layer, text_layer_get_layer(s_date_layer));
 
-  s_temperature_layer = text_layer_create(GRect(26, 113, bounds.size.w, 32));
+  // Create the TextLayer with specific bounds
+  icon_weather_layer = text_layer_create(GRect(29, 85, bounds.size.w, 40));
+  // Apply to TextLayer
+  text_layer_set_font(icon_weather_layer, s_weather_icon_font);
+  // Improve the layout to be more like a watchface
+  text_layer_set_background_color(icon_weather_layer, GColorClear);
+  text_layer_set_text_color(icon_weather_layer, GColorChromeYellow);
+  text_layer_set_text_alignment(icon_weather_layer, GTextAlignmentLeft);
+  // Add it as a child layer to the Window's root layer
+  layer_add_child(window_layer, text_layer_get_layer(icon_weather_layer));
+  
+  s_temperature_layer = text_layer_create(GRect(30, 120, bounds.size.w, 32));
   text_layer_set_text_color(s_temperature_layer, GColorChromeYellow);
   text_layer_set_background_color(s_temperature_layer, GColorClear);
   text_layer_set_font(s_temperature_layer, s_date_font);
   text_layer_set_text_alignment(s_temperature_layer, GTextAlignmentLeft);
   layer_add_child(window_layer, text_layer_get_layer(s_temperature_layer));
   
-  s_city_layer = text_layer_create(GRect(26, 150, bounds.size.w, 32));
+  s_city_layer = text_layer_create(GRect(27, 150, bounds.size.w, 32));
   text_layer_set_text_color(s_city_layer, GColorChromeYellow);
   text_layer_set_background_color(s_city_layer, GColorClear);
   text_layer_set_font(s_city_layer, fonts_get_system_font(FONT_KEY_GOTHIC_18));
@@ -349,7 +365,7 @@ static void window_load(Window *window) {
    // Create the TextLayer with specific bounds
   s_batterypercent_layer = text_layer_create(GRect(2, 54, bounds.size.w, 15));
   // Apply to TextLayer
-//  text_layer_set_font(s_batterypercent_layer, s_stardate_font);
+  text_layer_set_font(s_batterypercent_layer, fonts_get_system_font(FONT_KEY_GOTHIC_14));
   // Improve the layout to be more like a watchface
   text_layer_set_background_color(s_batterypercent_layer, GColorClear);
   text_layer_set_text_color(s_batterypercent_layer, GColorChromeYellow);
@@ -372,7 +388,7 @@ static void window_load(Window *window) {
   // Create the TextLayer with specific bounds
   s_lifesupport_text_layer = text_layer_create(GRect(70, 150, bounds.size.w, 15));
   // Apply to TextLayer
-//  text_layer_set_font(s_lifesupport_text_layer, s_stardate_font);
+  text_layer_set_font(s_lifesupport_text_layer, fonts_get_system_font(FONT_KEY_GOTHIC_14_BOLD));
   // Improve the layout to be more like a watchface
   text_layer_set_background_color(s_lifesupport_text_layer, GColorClear);
   text_layer_set_text_color(s_lifesupport_text_layer, GColorChromeYellow);
@@ -384,7 +400,7 @@ static void window_load(Window *window) {
       // Create the TextLayer with specific bounds
   s_parsec_layer = text_layer_create(GRect(95, 00, bounds.size.w, 15));
   // Apply to TextLayer
-//  text_layer_set_font(s_parsec_layer, s_stardate_font);
+  text_layer_set_font(s_parsec_layer, fonts_get_system_font(FONT_KEY_GOTHIC_14_BOLD));
   // Improve the layout to be more like a watchface
   text_layer_set_background_color(s_parsec_layer, GColorClear);
   text_layer_set_text_color(s_parsec_layer, GColorChromeYellow);
@@ -395,9 +411,8 @@ static void window_load(Window *window) {
 
   // Create the TextLayer with specific bounds
   s_stardate_layer = text_layer_create(GRect(26, 00, bounds.size.w, 15));
-  // Create GFont
   // Apply to TextLayer
-//  text_layer_set_font(s_stardate_layer, s_stardate_font);
+  text_layer_set_font(s_stardate_layer, fonts_get_system_font(FONT_KEY_GOTHIC_14_BOLD));
   // Improve the layout to be more like a watchface
   text_layer_set_background_color(s_stardate_layer, GColorClear);
   text_layer_set_text_color(s_stardate_layer, GColorChromeYellow);
@@ -461,12 +476,9 @@ static void update_time() {
   static char date_step_buffer[16];
   // Copy date into buffer from tm structure
   strftime(date_buffer, sizeof(date_buffer), "%m%d%y.", tick_time);
-
   //pull the current step count appending to the date buffer
-  snprintf(s_current_steps_buffer, sizeof(s_current_steps_buffer), "%d", s_step_count);
-  snprintf(date_step_buffer,sizeof(date_step_buffer),"%s%s",date_buffer,s_current_steps_buffer);
-
-  // Show the date
+  snprintf(date_step_buffer,sizeof(date_step_buffer),"%s%d",date_buffer,s_step_count);
+  // Show the stardate
   text_layer_set_text(s_date_layer, date_step_buffer);
  
   //battery numerical display
@@ -495,12 +507,18 @@ static void inbox_received_callback(DictionaryIterator *iterator, void *context)
 		generic_weather_fetch(weather_callback);
 	}
 	
-	data = dict_find(iterator, MESSAGE_KEY_OWMAPIKEY);
+	data = dict_find(iterator, MESSAGE_KEY_APIKEY);
 	if(data)
 	{
 		strcpy(api_key, data->value->cstring);
 		generic_weather_set_api_key(api_key);
 		generic_weather_fetch(weather_callback);
+	}
+
+	data = dict_find(iterator, MESSAGE_KEY_FTICK);
+	if(data)
+	{
+		F_Tick = data->value->int32 == 1;
 	}
 }
 
@@ -543,8 +561,7 @@ static void init() {
   events_connection_service_subscribe((ConnectionHandlers) {.pebble_app_connection_handler = bluetooth_callback});
 	update_time();
   
-  // Replace this with your own API key from OpenWeatherMap.org
-  //char *api_key = "231670f6efd41589ccc4459be949f986";
+  // Generic Weather setup and display
   generic_weather_init();
   generic_weather_set_api_key(api_key);
   generic_weather_set_provider(GenericWeatherProviderOpenWeatherMap);

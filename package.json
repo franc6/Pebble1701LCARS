@@ -6,25 +6,26 @@
         "pebble-generic-weather": "^1.1.0"
     },
     "keywords": [],
-    "name": "lcars",
+    "name": "1701d_lcars",
     "pebble": {
         "capabilities": [
             "location",
             "configurable",
             "health"
         ],
-        "displayName": "LCARS",
+        "displayName": "NCC-1701D LCARS",
         "enableMultiJS": true,
         "messageKeys": [
-            "OWMAPIKEY",
-            "READY"
+            "APIKEY",
+            "READY",
+            "FTICK"
         ],
         "projectType": "native",
         "resources": {
             "media": [
                 {
                     "file": "fonts/weather.ttf",
-                    "name": "WEATHERICON_18",
+                    "name": "WEATHERICON_38",
                     "targetPlatforms": [
                         "basalt"
                     ],
@@ -71,7 +72,7 @@
         "targetPlatforms": [
             "basalt"
         ],
-        "uuid": "483ebb30-44e1-4674-bdd2-d7cb8510f951",
+        "uuid": "da71a728-bf9d-4ecc-8d31-0d80775e65ae",
         "watchapp": {
             "watchface": true
         }

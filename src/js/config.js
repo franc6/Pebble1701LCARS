@@ -1,24 +1,30 @@
 module.exports = [
   {
     "type": "heading",
-    "defaultValue": "App Configuration"
+    "defaultValue": "NCC-1701 LCARS Settings"
   },
   {
     "type": "text",
-    "defaultValue": "Here is some introductory text."
+    "defaultValue": "I will be adding more settings, for now enjoy weather on your watchface."
   },
   {
     "type": "section",
     "items": [
       {
         "type": "heading",
-        "defaultValue": "My SETTINGS"
+        "defaultValue": "SETTINGS"
       },
       {
         "type": "input",
-        "messageKey": "OWMAPIKEY",
+        "messageKey": "APIKEY",
         "defaultValue": "",
         "label": "OpenWeatherMap API Key"
+      },
+      {
+        "type": "toggle",
+        "messageKey": "FTICK",
+        "label": "On for F, off for C",
+        "defaultValue": true
       }
     ]
   },
