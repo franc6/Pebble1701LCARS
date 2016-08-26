@@ -5,10 +5,9 @@
 
 static Window *s_main_window;
 static TextLayer *s_time_layer;
-static GFont s_time_font;
+static GFont s_time_font, s_date_font;
 static TextLayer *s_date_layer, *s_stardate_layer, *s_parsec_layer, *s_batterypercent_layer, *s_lifesupport_text_layer, *s_temperature_layer, *s_city_layer;
-static GFont s_date_font, s_stardate_font;
-static BitmapLayer *s_enterprise_layer;
+static BitmapLayer *s_enterprise_layer, *icon_weather_layer;
 static GBitmap *s_enterprise_bitmap;
 static char s_current_steps_buffer[16];
 static int s_step_count = 0, s_step_goal = 0, s_step_average = 0;
@@ -16,7 +15,20 @@ static int s_battery_level;
 static int s_battery_charging;
 //static int s_width_display;
 static Layer *s_battery_layer, *s_lifesupport_layer, *s_lcars_layer, *s_bt_layer;
-static char *api_key = "231670f6efd41589ccc4459be949f986";
+static char api_key[50];
+
+static void read_persist()
+{
+	if(persist_exists(MESSAGE_KEY_OWMAPIKEY))
+	{
+		persist_read_string(MESSAGE_KEY_OWMAPIKEY, api_key, sizeof(api_key));
+	}
+}
+
+static void store_persist()
+{
+	persist_write_string(MESSAGE_KEY_OWMAPIKEY, api_key);
+}
 
 static void bluetooth_callback(bool connected) {
   // Show icon if disconnected
@@ -34,46 +46,38 @@ static void bluetooth_callback(bool connected) {
   }
 }
 
-// Is step data available?
-bool step_data_is_available() {
-  return HealthServiceAccessibilityMaskAvailable &
-    health_service_metric_accessible(HealthMetricStepCount,
-      time_start_of_today(), time(NULL));
+static int get_health(HealthMetric metric, bool average)
+{
+  //HealthMetricStepCount
+  //HealthMetricSleepSeconds
+	time_t start = time_start_of_today();
+	time_t end = time(NULL);
+  const time_t endday = start + SECONDS_PER_DAY;
+
+	int output;
+	
+	if(average)
+	{
+		output = (int)health_service_sum_averaged(metric, start, endday, HealthServiceTimeScopeDaily);
+	}
+	else
+	{
+		HealthServiceAccessibilityMask mask = health_service_metric_accessible(metric, start, end);
+	
+		if(mask & HealthServiceAccessibilityMaskAvailable)
+		{
+			//APP_LOG(APP_LOG_LEVEL_INFO, "Metric: %d", (int)health_service_sum_today(metric));
+			output = health_service_sum_today(metric);
+		}
+		else
+		{
+			//APP_LOG(APP_LOG_LEVEL_ERROR, "Data unavailable!");
+			output = 0;
+		}
+	}
+	
+	return output;
 }
-
-// Daily step goal
-static void get_step_goal() {
-  const time_t start = time_start_of_today();
-  const time_t end = start + SECONDS_PER_DAY;
-  s_step_goal = (int)health_service_sum_averaged(HealthMetricStepCount,
-    start, end, HealthServiceTimeScopeDaily);
-}
-
-// Todays current step count
-static void get_step_count() {
-  s_step_count = (int)health_service_sum_today(HealthMetricStepCount);
-}
-
-// Average daily step count for this time of day
-static void get_step_average() {
-  const time_t start = time_start_of_today();
-  const time_t end = time(NULL);
-  s_step_average = (int)health_service_sum_averaged(HealthMetricStepCount,
-    start, end, HealthServiceTimeScopeDaily);
-}
-
-static void health_handler(HealthEventType event, void *context) {
-  if(event == HealthEventSignificantUpdate) {
-    get_step_goal();
-  }
-
-  if(event != HealthEventSleepUpdate) {
-    get_step_count();
-    get_step_average();
-    //display_step_count();
-    //layer_mark_dirty(s_progress_layer);
-  }
-  }
 
 static void lifesupport_update_proc(Layer *layer, GContext *ctx) {
   GRect bounds = layer_get_bounds(layer);
@@ -151,6 +155,7 @@ static void weather_callback(GenericWeatherInfo *info, GenericWeatherStatus stat
     {
       static char s_temp_buffer[16];
       static char s_city_buffer[6];
+		static char s_city_buffer_2[7];
 /*      snprintf(s_buffer, sizeof(s_buffer),"Temperature (K/C/F): %d/%d/%d\n\nName:\n%s\n\nDescription:\n%s",info->temp_k, info->temp_c, info->temp_f, info->name, info->description);
       text_layer_set_text(s_text_layer, s_buffer);
       snprintf(s_buffer, sizeof(s_buffer),"Temperature (K/C/F): %d/%d/%d\n\nName:\n%s\n\nDescription:\n%s",info->temp_k, info->temp_c, info->temp_f, info->name, info->description);
@@ -158,7 +163,56 @@ static void weather_callback(GenericWeatherInfo *info, GenericWeatherStatus stat
       snprintf(s_temp_buffer, sizeof(s_temp_buffer),"%d", info->temp_f);
       text_layer_set_text(s_temperature_layer, s_temp_buffer);
       snprintf(s_city_buffer, sizeof(s_city_buffer),"%s",info->name);
-      text_layer_set_text(s_city_layer, s_city_buffer);
+		snprintf(s_city_buffer_2, sizeof(s_city_buffer_2),"%s.", s_city_buffer);
+      text_layer_set_text(s_city_layer, s_city_buffer_2);
+		
+		/*switch(info->condition)
+			{
+				case GenericWeatherConditionClearSky:
+					if(info->day)
+					{
+						text_layer_set_text(icon_weather_layer, "J");
+					}
+					else
+					{
+						text_layer_set_text(icon_weather_layer, "D");
+					}
+					break;
+				case GenericWeatherConditionFewClouds:
+					if(info->day)
+					{
+						text_layer_set_text(icon_weather_layer, "F");
+					}
+					else
+					{
+						text_layer_set_text(icon_weather_layer, "E");
+					}
+					break;
+				case GenericWeatherConditionScatteredClouds:
+					text_layer_set_text(icon_weather_layer, "A");
+					break;
+				case GenericWeatherConditionBrokenClouds:
+					text_layer_set_text(icon_weather_layer, "A");
+					break;
+				case GenericWeatherConditionShowerRain:
+					text_layer_set_text(icon_weather_layer, "G");
+					break;
+				case GenericWeatherConditionRain:
+					text_layer_set_text(icon_weather_layer, "G");
+					break;
+				case GenericWeatherConditionThunderstorm:
+					text_layer_set_text(icon_weather_layer, "I");
+					break;
+				case GenericWeatherConditionSnow:
+					text_layer_set_text(icon_weather_layer, "H");
+					break;
+				case GenericWeatherConditionMist:
+					text_layer_set_text(icon_weather_layer, "C");
+					break;
+				case GenericWeatherConditionUnknown:
+					text_layer_set_text(icon_weather_layer, "");
+					break;
+			}*/
     }
       break;
     case GenericWeatherStatusNotYetFetched:
@@ -180,10 +234,6 @@ static void weather_callback(GenericWeatherInfo *info, GenericWeatherStatus stat
       text_layer_set_text(s_city_layer, "NoLoc");
       break;
   }
-}
-
-static void js_ready_handler(void *context) {
-  generic_weather_fetch(weather_callback);
 }
 
 static void battery_callback(BatteryChargeState state) {
@@ -214,10 +264,10 @@ static void bt_update_proc(Layer *layer, GContext *ctx) {
   bool connected = connection_service_peek_pebble_app_connection();
   //GRect bounds = layer_get_bounds(layer);
   if(connected){
-    graphics_context_set_fill_color(ctx, GColorBlack);
+    graphics_context_set_stroke_color(ctx, GColorBlack);
   }
   else {
-    graphics_context_set_fill_color(ctx, GColorDarkGray);
+    graphics_context_set_stroke_color(ctx, GColorDarkGray);
   }
     
   graphics_draw_line(ctx, GPoint(10, 1), GPoint(10, 22));
@@ -249,7 +299,6 @@ static void window_load(Window *window) {
   // Create GFonts
   s_date_font = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_LCARS_32));
   s_time_font = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_LCARS_64));
-  //  s_stardate_font = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_LCARS_15));
 
     // Create the TextLayer with specific bounds
   s_time_layer = text_layer_create(GRect(30, 80, bounds.size.w, 80));
@@ -292,7 +341,7 @@ static void window_load(Window *window) {
   s_city_layer = text_layer_create(GRect(26, 150, bounds.size.w, 32));
   text_layer_set_text_color(s_city_layer, GColorChromeYellow);
   text_layer_set_background_color(s_city_layer, GColorClear);
-  //text_layer_set_font(s_city_layer, s_stardate_font);
+  text_layer_set_font(s_city_layer, fonts_get_system_font(FONT_KEY_GOTHIC_18));
   text_layer_set_text_alignment(s_city_layer, GTextAlignmentLeft);
   text_layer_set_text(s_city_layer,"Load...");
   layer_add_child(window_layer, text_layer_get_layer(s_city_layer));
@@ -400,6 +449,10 @@ static void update_time() {
   strftime(s_buffer, sizeof(s_buffer), clock_is_24h_style() ?
                                           "%H%M" : "%I%M", tick_time);
 
+  s_step_count = get_health(HealthMetricStepCount, S_FALSE);
+  s_step_goal = get_health(HealthMetricStepCount, S_TRUE);
+  //HealthMetricSleepSeconds
+
   // Display this time on the TextLayer
   text_layer_set_text(s_time_layer, s_buffer);
   
@@ -433,6 +486,39 @@ static void tick_handler(struct tm *tick_time, TimeUnits units_changed) {
   if(tick_time->tm_min % 30 == 0) {  generic_weather_fetch(weather_callback);}
 }
 
+static void inbox_received_callback(DictionaryIterator *iterator, void *context)
+{
+	Tuple *data = dict_find(iterator, MESSAGE_KEY_READY);
+	if(data)
+	{
+		//APP_LOG(APP_LOG_LEVEL_DEBUG, "Ready Received! Requesting weather.");
+		generic_weather_fetch(weather_callback);
+	}
+	
+	data = dict_find(iterator, MESSAGE_KEY_OWMAPIKEY);
+	if(data)
+	{
+		strcpy(api_key, data->value->cstring);
+		generic_weather_set_api_key(api_key);
+		generic_weather_fetch(weather_callback);
+	}
+}
+
+static void inbox_dropped_callback(AppMessageResult reason, void *context)
+{
+	APP_LOG(APP_LOG_LEVEL_ERROR, "Message dropped!");
+}
+
+static void outbox_failed_callback(DictionaryIterator *iterator, AppMessageResult reason, void *context)
+{
+	APP_LOG(APP_LOG_LEVEL_ERROR, "Outbox send failed!");
+}
+
+static void outbox_sent_callback(DictionaryIterator *iterator, void *context)
+{
+	APP_LOG(APP_LOG_LEVEL_INFO, "Outbox send success!");
+}
+
 static void init() {
   s_main_window = window_create();
   window_set_background_color(s_main_window, GColorBlack);
@@ -441,35 +527,39 @@ static void init() {
     .unload = window_unload,
   });
   window_stack_push(s_main_window, true);
-
-  // Subscribe to health events if we can
-  if(step_data_is_available()) {events_health_service_events_subscribe(health_handler, NULL);}
+	
+	read_persist();
   
   // Register with TickTimerService
   events_tick_timer_service_subscribe(MINUTE_UNIT, tick_handler);
   // Make sure the time is displayed from the start
-  update_time();
-
+	
   // Register for battery level updates
   events_battery_state_service_subscribe(battery_callback);
   // Ensure battery level is displayed from the start
   battery_callback(battery_state_service_peek());
   
-    // Register for Bluetooth connection updates
+  // Register for Bluetooth connection updates
   events_connection_service_subscribe((ConnectionHandlers) {.pebble_app_connection_handler = bluetooth_callback});
+	update_time();
   
   // Replace this with your own API key from OpenWeatherMap.org
   //char *api_key = "231670f6efd41589ccc4459be949f986";
   generic_weather_init();
   generic_weather_set_api_key(api_key);
   generic_weather_set_provider(GenericWeatherProviderOpenWeatherMap);
+	events_app_message_request_inbox_size(1024);
+	events_app_message_register_inbox_received(inbox_received_callback, NULL);
+	events_app_message_register_inbox_dropped(inbox_dropped_callback, NULL);
+	events_app_message_register_outbox_failed(outbox_failed_callback, NULL);
+	events_app_message_register_outbox_sent(outbox_sent_callback, NULL);
   events_app_message_open();
-
-  app_timer_register(3000, js_ready_handler, NULL);
+  //app_timer_register(3000, js_ready_handler, NULL);
 }
 
 static void deinit() {
   generic_weather_deinit();
+	store_persist();
 }
 
 int main() {

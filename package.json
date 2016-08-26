@@ -16,11 +16,20 @@
         "displayName": "LCARS",
         "enableMultiJS": true,
         "messageKeys": [
-            "OWMAPIKEY"
+            "OWMAPIKEY",
+            "READY"
         ],
         "projectType": "native",
         "resources": {
             "media": [
+                {
+                    "file": "fonts/weather.ttf",
+                    "name": "WEATHERICON_18",
+                    "targetPlatforms": [
+                        "basalt"
+                    ],
+                    "type": "font"
+                },
                 {
                     "characterRegex": "[0-9\\.]",
                     "file": "fonts/LCARSGTJ3_32.ttf",
@@ -62,7 +71,7 @@
         "targetPlatforms": [
             "basalt"
         ],
-        "uuid": "859a655b-bf85-47da-a645-48bdbd124da8",
+        "uuid": "483ebb30-44e1-4674-bdd2-d7cb8510f951",
         "watchapp": {
             "watchface": true
         }
