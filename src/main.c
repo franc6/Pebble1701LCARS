@@ -341,7 +341,7 @@ static void window_load(Window *window) {
   text_layer_set_text_color(s_parsec_layer, GColorChromeYellow);
   text_layer_set_text_alignment(s_parsec_layer, GTextAlignmentLeft);
   // Add it as a child layer to the Window's root layer
-  text_layer_set_text(s_parsec_layer, "Steps");
+  text_layer_set_text(s_parsec_layer, "Parsecs");
   layer_add_child(window_layer, text_layer_get_layer(s_parsec_layer));
 
   // Create the TextLayer with specific bounds
@@ -361,8 +361,32 @@ static void window_load(Window *window) {
 }
 
 static void window_unload(Window *window) {
-  text_layer_destroy(s_city_layer);
+   text_layer_destroy(s_city_layer);
   text_layer_destroy(s_temperature_layer);
+  //bitmap_layer_destroy(s_icon_layer);
+    // Destroy TextLayer
+  text_layer_destroy(s_time_layer);
+  text_layer_destroy(s_date_layer);
+  text_layer_destroy(s_stardate_layer);
+  text_layer_destroy(s_parsec_layer);
+  
+  // Unload GFont
+  fonts_unload_custom_font(s_time_font);
+  fonts_unload_custom_font(s_date_font);
+  //fonts_unload_custom_font(s_stardate_font);
+  
+  // Destroy GBitmap
+  gbitmap_destroy(s_enterprise_bitmap);
+  //gbitmap_destroy(s_bt_icon_bitmap);
+
+  // Destroy BitmapLayer
+  bitmap_layer_destroy(s_enterprise_layer);
+  //bitmap_layer_destroy(s_bt_icon_layer);
+  
+  //Destroy Layers
+  layer_destroy(s_battery_layer);
+  layer_destroy(s_lifesupport_layer);
+  //layer_destroy(s_bt_icon_layer);
   window_destroy(window);
 }
 

@@ -1,5 +1,5 @@
 {
-    "author": "ddwatson@gmail.com",
+    "author": "BigMontana",
     "dependencies": {
         "pebble-clay": "^1.0.2",
         "pebble-events": "^1.1.0",
@@ -15,7 +15,9 @@
         ],
         "displayName": "LCARS",
         "enableMultiJS": true,
-        "messageKeys": [],
+        "messageKeys": [
+            "OWMAPIKEY"
+        ],
         "projectType": "native",
         "resources": {
             "media": [
@@ -60,10 +62,10 @@
         "targetPlatforms": [
             "basalt"
         ],
-        "uuid": "6a4f3ef0-0a61-4cc4-a77b-7766c094172b",
+        "uuid": "859a655b-bf85-47da-a645-48bdbd124da8",
         "watchapp": {
             "watchface": true
         }
     },
-    "version": "1.0.0"
+    "version": "0.5.0"
 }
