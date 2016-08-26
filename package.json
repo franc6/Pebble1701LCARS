@@ -1,0 +1,69 @@
+{
+    "author": "ddwatson@gmail.com",
+    "dependencies": {
+        "pebble-clay": "^1.0.2",
+        "pebble-events": "^1.1.0",
+        "pebble-generic-weather": "^1.1.0"
+    },
+    "keywords": [],
+    "name": "lcars",
+    "pebble": {
+        "capabilities": [
+            "location",
+            "configurable",
+            "health"
+        ],
+        "displayName": "LCARS",
+        "enableMultiJS": true,
+        "messageKeys": [],
+        "projectType": "native",
+        "resources": {
+            "media": [
+                {
+                    "characterRegex": "[0-9\\.]",
+                    "file": "fonts/LCARSGTJ3_32.ttf",
+                    "name": "LCARS_32",
+                    "targetPlatforms": [
+                        "basalt"
+                    ],
+                    "type": "font"
+                },
+                {
+                    "file": "images/enterprise.png",
+                    "name": "ENTERPRISE",
+                    "targetPlatforms": [
+                        "basalt"
+                    ],
+                    "type": "bitmap"
+                },
+                {
+                    "file": "images/tile.png",
+                    "menuIcon": true,
+                    "name": "TILE",
+                    "targetPlatforms": [
+                        "basalt"
+                    ],
+                    "type": "bitmap"
+                },
+                {
+                    "characterRegex": "[0-9]",
+                    "file": "fonts/LCARSGTJ3_64.ttf",
+                    "name": "LCARS_64",
+                    "targetPlatforms": [
+                        "basalt"
+                    ],
+                    "type": "font"
+                }
+            ]
+        },
+        "sdkVersion": "3",
+        "targetPlatforms": [
+            "basalt"
+        ],
+        "uuid": "6a4f3ef0-0a61-4cc4-a77b-7766c094172b",
+        "watchapp": {
+            "watchface": true
+        }
+    },
+    "version": "1.0.0"
+}
