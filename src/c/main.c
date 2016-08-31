@@ -9,6 +9,7 @@ static TextLayer *s_date_layer, *s_stardate_layer, *s_parsec_layer, *s_batterype
 static BitmapLayer *s_enterprise_layer;
 static GBitmap *s_enterprise_bitmap;
 static char api_key[50];
+static char userweatherprovider[6];
 static int s_step_count = 0, s_step_goal = 0, s_step_average = 0, s_battery_level, s_battery_charging;
 static Layer *s_battery_layer, *s_lifesupport_layer, *s_lcars_layer, *s_bt_layer;
 static bool F_Tick = S_TRUE;
@@ -23,12 +24,17 @@ static void read_persist()
 	{
 		F_Tick = persist_read_bool(MESSAGE_KEY_FTICK);
 	}
+	if(persist_exists(MESSAGE_KEY_WeatherProvide))
+	{
+		persist_read_string(MESSAGE_KEY_WeatherProvide, userweatherprovider, sizeof(userweatherprovider));
+	}
 }
 
 static void store_persist()
 {
 	persist_write_string(MESSAGE_KEY_APIKEY, api_key);
   persist_write_bool(MESSAGE_KEY_FTICK, F_Tick);
+	persist_write_string(MESSAGE_KEY_WeatherProvide, userweatherprovider);
 }
 
 static void bluetooth_callback(bool connected) {
@@ -302,11 +308,11 @@ static void window_load(Window *window) {
   
   // Create GFonts
   s_date_font = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_LCARS_32));
-  s_time_font = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_LCARS_64));
+  s_time_font = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_LCARS_58));
   s_weather_icon_font = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_WEATHERICON_38));
   
     // Create the TextLayer with specific bounds
-  s_time_layer = text_layer_create(GRect(30, 80, bounds.size.w, 80));
+  s_time_layer = text_layer_create(GRect(30, 83, bounds.size.w, 80));
   // Create GFont
   // Apply to TextLayer
   text_layer_set_font(s_time_layer, s_time_font);
@@ -512,13 +518,26 @@ static void inbox_received_callback(DictionaryIterator *iterator, void *context)
 	{
 		strcpy(api_key, data->value->cstring);
 		generic_weather_set_api_key(api_key);
-		generic_weather_fetch(weather_callback);
+//		generic_weather_fetch(weather_callback);
 	}
 
 	data = dict_find(iterator, MESSAGE_KEY_FTICK);
 	if(data)
 	{
 		F_Tick = data->value->int32 == 1;
+	}
+  
+	data = dict_find(iterator, MESSAGE_KEY_WeatherProvide);
+	if(data)
+	{
+    strcpy(userweatherprovider, data->value->cstring);
+    if (strcmp(userweatherprovider,"OpenWe")==0)
+      {	generic_weather_set_provider(GenericWeatherProviderOpenWeatherMap);}
+    else if(strcmp(userweatherprovider,"WUnder")==0)
+    {generic_weather_set_provider(GenericWeatherProviderWeatherUnderground);}
+		else if(strcmp(userweatherprovider,"For.io")==0)
+    {generic_weather_set_provider(GenericWeatherProviderForecastIo);}
+	generic_weather_fetch(weather_callback);
 	}
 }
 
@@ -564,7 +583,13 @@ static void init() {
   // Generic Weather setup and display
   generic_weather_init();
   generic_weather_set_api_key(api_key);
-  generic_weather_set_provider(GenericWeatherProviderOpenWeatherMap);
+  if (strcmp(userweatherprovider,"OpenWe")==0)
+    {generic_weather_set_provider(GenericWeatherProviderOpenWeatherMap);}
+  else if(strcmp(userweatherprovider,"WUnder")==0)
+    {generic_weather_set_provider(GenericWeatherProviderWeatherUnderground);}
+	else if(strcmp(userweatherprovider,"For.io")==0)
+    {generic_weather_set_provider(GenericWeatherProviderForecastIo);}
+//  generic_weather_set_provider(GenericWeatherProviderOpenWeatherMap);
 	events_app_message_request_inbox_size(1024);
 	events_app_message_register_inbox_received(inbox_received_callback, NULL);
 	events_app_message_register_inbox_dropped(inbox_dropped_callback, NULL);

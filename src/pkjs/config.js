@@ -15,10 +15,29 @@ module.exports = [
         "defaultValue": "SETTINGS"
       },
       {
+        "type": "radiogroup",
+        "messageKey": "WeatherProvide",
+        "label": "Please select which weather provider you would like to use",
+        "defaultValue": "OpenWe",
+        "options": [
+          { 
+          "label": "OpenWeatherMap", 
+          "value": "OpenWe" 
+          },
+          { 
+          "label": "WeatherUnderGround", 
+          "value": "WUnder" 
+          },
+          { 
+          "label": "Forecast.io", 
+          "value": "For.io" 
+          }]
+      },
+      {
         "type": "input",
         "messageKey": "APIKEY",
         "defaultValue": "",
-        "label": "OpenWeatherMap API Key"
+        "label": "Please sign up for an API Key from your selected weather provider and enter it here"
       },
       {
         "type": "toggle",
