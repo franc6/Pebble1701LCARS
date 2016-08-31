@@ -9,7 +9,7 @@ static TextLayer *s_date_layer, *s_stardate_layer, *s_parsec_layer, *s_batterype
 static BitmapLayer *s_enterprise_layer;
 static GBitmap *s_enterprise_bitmap;
 static char api_key[50];
-static char userweatherprovider[6];
+static char userweatherprovider[7];
 static int s_step_count = 0, s_step_goal = 0, s_step_average = 0, s_battery_level, s_battery_charging;
 static Layer *s_battery_layer, *s_lifesupport_layer, *s_lcars_layer, *s_bt_layer;
 static bool F_Tick = S_TRUE;
@@ -534,11 +534,11 @@ static void inbox_received_callback(DictionaryIterator *iterator, void *context)
     if (strcmp(userweatherprovider,"OpenWe")==0)
       {	generic_weather_set_provider(GenericWeatherProviderOpenWeatherMap);}
     else if(strcmp(userweatherprovider,"WUnder")==0)
-    {generic_weather_set_provider(GenericWeatherProviderWeatherUnderground);}
+      {generic_weather_set_provider(GenericWeatherProviderWeatherUnderground);}
 		else if(strcmp(userweatherprovider,"For.io")==0)
-    {generic_weather_set_provider(GenericWeatherProviderForecastIo);}
-	generic_weather_fetch(weather_callback);
-	}
+      {generic_weather_set_provider(GenericWeatherProviderForecastIo);}
+	    generic_weather_fetch(weather_callback);
+      }
 }
 
 static void inbox_dropped_callback(AppMessageResult reason, void *context)
@@ -589,6 +589,9 @@ static void init() {
     {generic_weather_set_provider(GenericWeatherProviderWeatherUnderground);}
 	else if(strcmp(userweatherprovider,"For.io")==0)
     {generic_weather_set_provider(GenericWeatherProviderForecastIo);}
+  else
+    {APP_LOG(APP_LOG_LEVEL_DEBUG, "UNKNOWN PROVIDER: -%s-", userweatherprovider);
+    }
 //  generic_weather_set_provider(GenericWeatherProviderOpenWeatherMap);
 	events_app_message_request_inbox_size(1024);
 	events_app_message_register_inbox_received(inbox_received_callback, NULL);
