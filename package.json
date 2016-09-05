@@ -19,7 +19,10 @@
             "APIKEY",
             "READY",
             "FTICK",
-            "WeatherProvide"
+            "WeatherProvide",
+            "POWERDISPLAY",
+            "HealthMeterSelect",
+            "UKDATE"
         ],
         "projectType": "native",
         "resources": {
