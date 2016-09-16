@@ -219,9 +219,9 @@ static void weather_callback(GenericWeatherInfo *info, GenericWeatherStatus stat
   switch(status) {
     case GenericWeatherStatusAvailable:
     {
-      static char s_temp_buffer[1];
-      static char s_city_buffer[1];
-      static char s_weather_description[1];
+      static char s_temp_buffer[16];
+      static char s_city_buffer[32];
+      static char s_weather_description[14];
 //      snprintf(s_buffer, sizeof(s_buffer),"Temperature (K/C/F): %d/%d/%d\n\nName:\n%s\n\nDescription:\n%s",info->temp_k, info->temp_c, info->temp_f, info->name, info->description);
       if (F_Tick) {
         snprintf(s_temp_buffer, sizeof(s_temp_buffer),"%d", info->temp_f);}
