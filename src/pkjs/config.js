@@ -27,20 +27,50 @@ module.exports = [
         "defaultValue": false
       },
       {
+        "type": "toggle",
+        "messageKey": "WEEKDAYNAME",
+        "label": "Display the abbreviated weekday name at the top left?",
+        "defaultValue": true
+      },
+      {
         "type": "radiogroup",
         "messageKey": "HealthMeterSelect",
         "label": "The health meter bar can display your progress toward your...",
         "defaultValue": "daily",
         "options": [
           { 
-          "label": "average daily steps you have walked up to right now", 
+          "label": "Average daily steps you have walked up to right now (health meter will be colored green)", 
           "value": "currenttime"
           },
           { 
-          "label": "average dayily steps for the entire day", 
+          "label": "Average dayily steps for the entire day (health meter will be colored blue)", 
           "value": "daily"
           }]
+      },
+      {
+        "type": "radiogroup",
+        "messageKey": "WEEKNUMFORMAT",
+        "label": "You can also display the week number in one of the following formats.  The week number will display at the top left prepended by a #",
+        "defaultValue": "none",
+        "options": [
+          { 
+          "label": "Do not display the week number", 
+          "value": "none"
+          },
+          { 
+          "label": "Week number using the first Sunday as the first week", 
+          "value": "%U"
+          },
+          { 
+          "label": "ISO-8601 week number where the first week of the year has at least 4 weekdays.  Monday is the start of the week", 
+          "value": "%V"
+          },
+          { 
+          "label": "Week number using the first Monday as the first week", 
+          "value": "%W"
+          }]
       }
+
     ]
     },
   {
@@ -80,6 +110,12 @@ module.exports = [
         "messageKey": "FTICK",
         "label": "On for F, off for C",
         "defaultValue": true
+      },
+      {
+        "type": "toggle",
+        "messageKey": "WEATHERDESCRIPTION",
+        "label": "Display the description of the weather in addition to the weather icon",
+        "defaultValue": false
       }
     ]
   },

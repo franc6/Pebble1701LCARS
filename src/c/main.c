@@ -5,18 +5,21 @@
 
 static Window *s_main_window;
 static GFont s_time_font, s_date_font, s_weather_icon_font;
-static TextLayer *s_date_layer, *s_stardate_layer, *s_parsec_layer, *s_batterypercent_layer, *s_lifesupport_text_layer, *s_temperature_layer, *s_city_layer, *icon_weather_layer, *s_time_layer;
+static TextLayer *s_date_layer, *s_stardate_layer, *s_parsec_layer, *s_batterypercent_layer, *s_lifesupport_text_layer, *s_temperature_layer, *s_city_layer, *icon_weather_layer, *s_time_layer, *s_weekname_layer, *s_weeknum_layer, *s_weatherdescript_layer;
 static BitmapLayer *s_enterprise_layer;
 static GBitmap *s_enterprise_bitmap;
 static char api_key[50];
 static char userweatherprovider[7];
 static char healthmeterselector[12];
+static char WeekNumDisp[5];
 static char battery_text[] = "Pwr:100%";
 static int s_step_count = 0, s_step_goal = 0, s_battery_level, s_battery_charging;
 static Layer *s_battery_layer, *s_lifesupport_layer, *s_lcars_layer, *s_bt_layer;
 static bool F_Tick = S_TRUE;
 static bool PowerDisp = S_TRUE;
 static bool UKDateFormat = S_FALSE;
+static bool WeekdayNameDisp = S_TRUE;
+static bool WeatherDescriptionDisp = S_FALSE;
 
 static void read_persist()
 {
@@ -32,6 +35,14 @@ static void read_persist()
 	{
 		UKDateFormat = persist_read_bool(MESSAGE_KEY_UKDATE);
 	}
+	if(persist_exists(MESSAGE_KEY_WEATHERDESCRIPTION))
+	{
+		WeatherDescriptionDisp = persist_read_bool(MESSAGE_KEY_WEATHERDESCRIPTION);
+	}
+	if(persist_exists(MESSAGE_KEY_WEEKDAYNAME))
+	{
+		WeekdayNameDisp = persist_read_bool(MESSAGE_KEY_WEEKDAYNAME);
+	}
 	if(persist_exists(MESSAGE_KEY_POWERDISPLAY))
 	{
 		PowerDisp = persist_read_bool(MESSAGE_KEY_POWERDISPLAY);
@@ -39,6 +50,10 @@ static void read_persist()
 	if(persist_exists(MESSAGE_KEY_WeatherProvide))
 	{
 		persist_read_string(MESSAGE_KEY_WeatherProvide, userweatherprovider, sizeof(userweatherprovider));
+	}
+	if(persist_exists(MESSAGE_KEY_WEEKNUMFORMAT))
+	{
+		persist_read_string(MESSAGE_KEY_WEEKNUMFORMAT, WeekNumDisp, sizeof(WeekNumDisp));
 	}
 	if(persist_exists(MESSAGE_KEY_HealthMeterSelect))
 	{
@@ -51,8 +66,11 @@ static void store_persist()
 	persist_write_string(MESSAGE_KEY_APIKEY, api_key);
   persist_write_bool(MESSAGE_KEY_FTICK, F_Tick);
   persist_write_bool(MESSAGE_KEY_UKDATE, UKDateFormat);
+  persist_write_bool(MESSAGE_KEY_WEATHERDESCRIPTION, WeatherDescriptionDisp);
+  persist_write_bool(MESSAGE_KEY_WEEKDAYNAME, WeekdayNameDisp);
   persist_write_bool(MESSAGE_KEY_POWERDISPLAY, PowerDisp);
 	persist_write_string(MESSAGE_KEY_WeatherProvide, userweatherprovider);
+	persist_write_string(MESSAGE_KEY_WEEKNUMFORMAT, WeekNumDisp);
 	persist_write_string(MESSAGE_KEY_HealthMeterSelect, healthmeterselector);
 }
 
@@ -139,7 +157,10 @@ static void lifesupport_update_proc(Layer *layer, GContext *ctx) {
   //  graphics_fill_rect(ctx, bounds, 0, GCornerNone);
 
   // Draw the bar
-  graphics_context_set_fill_color(ctx, GColorBlueMoon);
+  if (strcmp(healthmeterselector,"currenttime")==0)
+    {graphics_context_set_fill_color(ctx, GColorMidnightGreen);}
+  else
+    {graphics_context_set_fill_color(ctx, GColorBlueMoon);}
   graphics_fill_rect(ctx, GRect(0, 0, width, bounds.size.h), 0, GCornerNone);
 }
 
@@ -187,7 +208,7 @@ static void lcars_block(Layer *layer, GContext *ctx) {
   //upper elbo +2
   graphics_fill_rect(ctx, GRect(100,53,44,4), 0, GCornerNone);
   graphics_context_set_fill_color(ctx, GColorLavenderIndigo);
-  //upper elbo 11
+  //upper elbo -1
   graphics_fill_rect(ctx, GRect(3,18,21,15), 0, GCornerNone);
   graphics_context_set_fill_color(ctx, GColorPictonBlue);
   //upper elbo -2
@@ -198,22 +219,22 @@ static void weather_callback(GenericWeatherInfo *info, GenericWeatherStatus stat
   switch(status) {
     case GenericWeatherStatusAvailable:
     {
-      static char s_temp_buffer[16];
-      static char s_city_buffer[32];
-//		static char s_city_buffer_2[7];
-/*      snprintf(s_buffer, sizeof(s_buffer),"Temperature (K/C/F): %d/%d/%d\n\nName:\n%s\n\nDescription:\n%s",info->temp_k, info->temp_c, info->temp_f, info->name, info->description);
-      text_layer_set_text(s_text_layer, s_buffer);
-      snprintf(s_buffer, sizeof(s_buffer),"Temperature (K/C/F): %d/%d/%d\n\nName:\n%s\n\nDescription:\n%s",info->temp_k, info->temp_c, info->temp_f, info->name, info->description);
-      text_layer_set_text(s_text_layer, s_buffer);*/
+      static char s_temp_buffer[1];
+      static char s_city_buffer[1];
+      static char s_weather_description[1];
+//      snprintf(s_buffer, sizeof(s_buffer),"Temperature (K/C/F): %d/%d/%d\n\nName:\n%s\n\nDescription:\n%s",info->temp_k, info->temp_c, info->temp_f, info->name, info->description);
       if (F_Tick) {
         snprintf(s_temp_buffer, sizeof(s_temp_buffer),"%d", info->temp_f);}
       else {
         snprintf(s_temp_buffer, sizeof(s_temp_buffer),"%d", info->temp_c);}
       text_layer_set_text(s_temperature_layer, s_temp_buffer);
       snprintf(s_city_buffer, sizeof(s_city_buffer),"%s",info->name);
-	//	snprintf(s_city_buffer_2, sizeof(s_city_buffer_2),"%s.", s_city_buffer);
       text_layer_set_text(s_city_layer, s_city_buffer);
-		
+      if (WeatherDescriptionDisp) {
+        snprintf(s_weather_description, sizeof(s_weather_description),"%s",info->description);
+        text_layer_set_text(s_weatherdescript_layer, s_weather_description);
+      }		
+      else {text_layer_set_text(s_weatherdescript_layer, " ");}
 		switch(info->condition)
 			{
 				case GenericWeatherConditionClearSky:
@@ -403,8 +424,14 @@ static void window_load(Window *window) {
   text_layer_set_background_color(s_city_layer, GColorClear);
   text_layer_set_font(s_city_layer, fonts_get_system_font(FONT_KEY_GOTHIC_18));
   text_layer_set_text_alignment(s_city_layer, GTextAlignmentLeft);
-  text_layer_set_text(s_city_layer,"Load...");
   layer_add_child(window_layer, text_layer_get_layer(s_city_layer));
+
+  s_weatherdescript_layer = text_layer_create(GRect(74, 74, bounds.size.w, 32));
+  text_layer_set_text_color(s_weatherdescript_layer, GColorChromeYellow);
+  text_layer_set_background_color(s_weatherdescript_layer, GColorClear);
+  text_layer_set_font(s_weatherdescript_layer, fonts_get_system_font(FONT_KEY_GOTHIC_14));
+  text_layer_set_text_alignment(s_weatherdescript_layer, GTextAlignmentLeft);
+  layer_add_child(window_layer, text_layer_get_layer(s_weatherdescript_layer));
   
    // Create the TextLayer with specific bounds
   s_batterypercent_layer = text_layer_create(GRect(2, 54, bounds.size.w, 15));
@@ -440,7 +467,29 @@ static void window_load(Window *window) {
   text_layer_set_text(s_lifesupport_text_layer, "Life Support");
   // Add it as a child layer to the Window's root layer
   layer_add_child(window_layer, text_layer_get_layer(s_lifesupport_text_layer));
-  
+
+  // Create the TextLayer with specific bounds
+  s_weekname_layer = text_layer_create(GRect(3,0,21,16));
+  // Apply to TextLayer
+  text_layer_set_font(s_weekname_layer, fonts_get_system_font(FONT_KEY_GOTHIC_14));
+  // Improve the layout to be more like a watchface
+  text_layer_set_background_color(s_weekname_layer, GColorClear);
+  text_layer_set_text_color(s_weekname_layer, GColorBlack);
+  text_layer_set_text_alignment(s_weekname_layer, GTextAlignmentCenter);
+  // Add it as a child layer to the Window's root layer
+  layer_add_child(window_layer, text_layer_get_layer(s_weekname_layer));
+
+  // Create the TextLayer with specific bounds
+  s_weeknum_layer = text_layer_create(GRect(3,16,21,15));
+  // Apply to TextLayer
+  text_layer_set_font(s_weeknum_layer, fonts_get_system_font(FONT_KEY_GOTHIC_14));
+  // Improve the layout to be more like a watchface
+  text_layer_set_background_color(s_weeknum_layer, GColorClear);
+  text_layer_set_text_color(s_weeknum_layer, GColorBlack);
+  text_layer_set_text_alignment(s_weeknum_layer, GTextAlignmentCenter);
+  // Add it as a child layer to the Window's root layer
+  layer_add_child(window_layer, text_layer_get_layer(s_weeknum_layer));
+
       // Create the TextLayer with specific bounds
   s_parsec_layer = text_layer_create(GRect(95, 00, bounds.size.w, 15));
   // Apply to TextLayer
@@ -510,7 +559,25 @@ static void update_time() {
   static char s_buffer[8];
   strftime(s_buffer, sizeof(s_buffer), clock_is_24h_style() ?
                                           "%H%M" : "%I%M", tick_time);
-  
+
+  if (WeekdayNameDisp) {
+    static char s_weekdayname[4];
+    static char s_weekdayname1[3];
+    strftime(s_weekdayname, sizeof(s_weekdayname), "%a", tick_time);
+    snprintf(s_weekdayname1,sizeof(s_weekdayname1),"%s",s_weekdayname);
+    text_layer_set_text(s_weekname_layer, s_weekdayname1);}
+  else {
+    text_layer_set_text(s_weekname_layer, " ");}
+
+  if ((strcmp(WeekNumDisp,"none")==0) || (strcmp(WeekNumDisp,"")==0))
+      {text_layer_set_text(s_weeknum_layer, " ");}
+  else {
+    static char s_weeknum[3];
+    static char s_weeknum1[4];
+    strftime(s_weeknum, sizeof(s_weeknum), WeekNumDisp, tick_time);
+    snprintf(s_weeknum1,sizeof(s_weeknum1),"#%s",s_weeknum);
+    text_layer_set_text(s_weeknum_layer, s_weeknum1);}
+
   // Display this time on the TextLayer
   text_layer_set_text(s_time_layer, s_buffer);
   
@@ -578,6 +645,20 @@ static void inbox_received_callback(DictionaryIterator *iterator, void *context)
    	update_time();
 	}
 
+	data = dict_find(iterator, MESSAGE_KEY_WEATHERDESCRIPTION);
+	if(data)
+	{
+		WeatherDescriptionDisp = data->value->int32 == 1;
+   	generic_weather_fetch(weather_callback);
+	}
+
+	data = dict_find(iterator, MESSAGE_KEY_WEEKDAYNAME);
+	if(data)
+	{
+		WeekdayNameDisp = data->value->int32 == 1;
+   	update_time();
+	}
+
 	data = dict_find(iterator, MESSAGE_KEY_POWERDISPLAY);
 	if(data)
 	{
@@ -602,6 +683,13 @@ static void inbox_received_callback(DictionaryIterator *iterator, void *context)
       {generic_weather_set_provider(GenericWeatherProviderForecastIo);}
 	    generic_weather_fetch(weather_callback);
       }
+
+	data = dict_find(iterator, MESSAGE_KEY_WEEKNUMFORMAT);
+	if(data)
+	{
+    strcpy(WeekNumDisp, data->value->cstring);
+  	update_time();
+  }
 
 	data = dict_find(iterator, MESSAGE_KEY_HealthMeterSelect);
 	if(data)
