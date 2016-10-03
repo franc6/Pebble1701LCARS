@@ -3,7 +3,7 @@
     "dependencies": {
         "pebble-clay": "^1.0.2",
         "pebble-events": "^1.1.0",
-        "pebble-generic-weather": "^1.1.0"
+        "pebble-generic-weather": "^1.1.4"
     },
     "keywords": [],
     "name": "1701d_lcars",
@@ -25,7 +25,9 @@
             "UKDATE",
             "WEEKDAYNAME",
             "WEEKNUMFORMAT",
-            "WEATHERDESCRIPTION"
+            "WEATHERDESCRIPTION",
+            "WEATHERREPLACEMENT",
+            "STEPGOAL"
         ],
         "projectType": "native",
         "resources": {
@@ -48,7 +50,7 @@
                     "type": "font"
                 },
                 {
-                    "characterRegex": "[0-9\\.]",
+                    "characterRegex": "[0-9\u2026\\.]",
                     "file": "fonts/LCARSGTJ3_32.ttf",
                     "name": "LCARS_32",
                     "targetPlatforms": [
@@ -84,5 +86,5 @@
             "watchface": true
         }
     },
-    "version": "1.8.0"
+    "version": "1.9.0"
 }

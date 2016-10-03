@@ -34,21 +34,6 @@ module.exports = [
       },
       {
         "type": "radiogroup",
-        "messageKey": "HealthMeterSelect",
-        "label": "The health meter bar can display your progress toward your...",
-        "defaultValue": "daily",
-        "options": [
-          { 
-          "label": "Average daily steps you have walked up to right now (health meter will be colored green)", 
-          "value": "currenttime"
-          },
-          { 
-          "label": "Average dayily steps for the entire day (health meter will be colored blue)", 
-          "value": "daily"
-          }]
-      },
-      {
-        "type": "radiogroup",
         "messageKey": "WEEKNUMFORMAT",
         "label": "You can also display the week number in one of the following formats.  The week number will display at the top left prepended by a #",
         "defaultValue": "none",
@@ -69,8 +54,13 @@ module.exports = [
           "label": "Week number using the first Monday as the first week", 
           "value": "%W"
           }]
+      },
+      {
+        "type": "input",
+        "messageKey": "STEPGOAL",
+        "defaultValue": "7500",
+        "label": "Set your daily step goal and your watch will buzz and display an animation when you achieve that goal.  Set to 0 to disable both functions."
       }
-
     ]
     },
   {
@@ -79,6 +69,12 @@ module.exports = [
       {
         "type": "heading",
         "defaultValue": "Watchface Weather Settings"
+      },
+      {
+        "type": "input",
+        "messageKey": "WEATHERREPLACEMENT",
+        "defaultValue": "",
+        "label": "If you would like to disable weather, enter a short 20 character message to display instead.  Note: depending on the characters used, you may not have room to display all 20 characters.  When this field is blank, we will poll weather."
       },
       {
         "type": "radiogroup",

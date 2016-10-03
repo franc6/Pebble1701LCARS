@@ -9,23 +9,38 @@ static TextLayer *s_date_layer, *s_stardate_layer, *s_parsec_layer, *s_batterype
 static BitmapLayer *s_enterprise_layer;
 static GBitmap *s_enterprise_bitmap;
 static char api_key[50];
+static char ReplacementWeatherMessage[21];
 static char userweatherprovider[7];
 static char healthmeterselector[12];
 static char WeekNumDisp[5];
+static char StringUserStepGoal[6];
 static char battery_text[] = "Pwr:100%";
-static int s_step_count = 0, s_step_goal = 0, s_battery_level, s_battery_charging;
-static Layer *s_battery_layer, *s_lifesupport_layer, *s_lcars_layer, *s_bt_layer;
+static int s_step_count = 1, s_step_goal = 1, s_step_average = 1, prev_s_step_count = 1, UserStepGoal = 7500,s_battery_level, s_battery_charging;
+static Layer *s_battery_layer, *s_lifesupport_layer, *s_lcars_layer, *s_bt_layer, *s_warp_layer;
 static bool F_Tick = S_TRUE;
 static bool PowerDisp = S_TRUE;
 static bool UKDateFormat = S_FALSE;
 static bool WeekdayNameDisp = S_TRUE;
 static bool WeatherDescriptionDisp = S_FALSE;
+static int warpsequence = 0;
+#define TIMER_INTERVAL_MS 500
+static PropertyAnimation *image_property_animation;
+static bool WeatherSetupStatusKey = S_FALSE, WeatherSetupStatusProvider = S_FALSE;
 
 static void read_persist()
 {
 	if(persist_exists(MESSAGE_KEY_APIKEY))
 	{
 		persist_read_string(MESSAGE_KEY_APIKEY, api_key, sizeof(api_key));
+	}
+	if(persist_exists(MESSAGE_KEY_STEPGOAL))
+	{
+		persist_read_string(MESSAGE_KEY_STEPGOAL, StringUserStepGoal, sizeof(StringUserStepGoal));
+    UserStepGoal = atoi(StringUserStepGoal);
+	}
+	if(persist_exists(MESSAGE_KEY_WEATHERREPLACEMENT))
+	{
+		persist_read_string(MESSAGE_KEY_WEATHERREPLACEMENT, ReplacementWeatherMessage, sizeof(ReplacementWeatherMessage));
 	}
 	if(persist_exists(MESSAGE_KEY_FTICK))
 	{
@@ -63,7 +78,9 @@ static void read_persist()
 
 static void store_persist()
 {
+  persist_write_string(MESSAGE_KEY_STEPGOAL, StringUserStepGoal);
 	persist_write_string(MESSAGE_KEY_APIKEY, api_key);
+	persist_write_string(MESSAGE_KEY_WEATHERREPLACEMENT, ReplacementWeatherMessage);
   persist_write_bool(MESSAGE_KEY_FTICK, F_Tick);
   persist_write_bool(MESSAGE_KEY_UKDATE, UKDateFormat);
   persist_write_bool(MESSAGE_KEY_WEATHERDESCRIPTION, WeatherDescriptionDisp);
@@ -144,11 +161,10 @@ static void lifesupport_update_proc(Layer *layer, GContext *ctx) {
   GRect bounds = layer_get_bounds(layer);
 
   // Find the width of the bar which is up to 57 pixels wide
-  int width = (int)(float)(((float)s_step_count / s_step_goal) * bounds.size.w);
-  if (width > bounds.size.w){width = bounds.size.w;}
-
-  //this is here for debugging
-  //s_width_display = bounds.size.w;
+  int goalwidth = (int)(float)(((float)s_step_count / s_step_goal) * bounds.size.w);
+  if (goalwidth > bounds.size.w){goalwidth = bounds.size.w;}
+  int avgwidth = (int)(float)(((float)s_step_count / s_step_average) * bounds.size.w);
+  if (avgwidth > bounds.size.w){avgwidth = bounds.size.w;}
 
   // Draw the background
   graphics_context_set_stroke_color(ctx, GColorWhite);
@@ -157,11 +173,15 @@ static void lifesupport_update_proc(Layer *layer, GContext *ctx) {
   //  graphics_fill_rect(ctx, bounds, 0, GCornerNone);
 
   // Draw the bar
-  if (strcmp(healthmeterselector,"currenttime")==0)
+/*  if (strcmp(healthmeterselector,"currenttime")==0)
     {graphics_context_set_fill_color(ctx, GColorMidnightGreen);}
   else
     {graphics_context_set_fill_color(ctx, GColorBlueMoon);}
-  graphics_fill_rect(ctx, GRect(0, 0, width, bounds.size.h), 0, GCornerNone);
+*/
+  graphics_context_set_fill_color(ctx, GColorBlueMoon);
+  graphics_fill_rect(ctx, GRect(0, 0, goalwidth, bounds.size.h), 0, GCornerNone);
+  graphics_context_set_fill_color(ctx, GColorMidnightGreen);
+  graphics_fill_rect(ctx, GRect(0, 0, avgwidth, bounds.size.h-7), 0, GCornerNone);
 }
 
 static void lcars_block(Layer *layer, GContext *ctx) {
@@ -216,6 +236,7 @@ static void lcars_block(Layer *layer, GContext *ctx) {
 }
 
 static void weather_callback(GenericWeatherInfo *info, GenericWeatherStatus status) {
+  if (strlen(ReplacementWeatherMessage)==0){
   switch(status) {
     case GenericWeatherStatusAvailable:
     {
@@ -302,7 +323,7 @@ static void weather_callback(GenericWeatherInfo *info, GenericWeatherStatus stat
     case GenericWeatherStatusLocationUnavailable:
       text_layer_set_text(s_city_layer, "NoLoc");
       break;
-  }
+  }}
 }
 
 static void battery_callback(BatteryChargeState state) {
@@ -319,13 +340,14 @@ static void battery_update_proc(Layer *layer, GContext *ctx) {
   // Find the width of the bar
   int width = (int)(float)(((float)s_battery_level / 100.0F) * bounds.size.w);
 
-  // Draw the background
-  graphics_context_set_fill_color(ctx, GColorBlack);
-  graphics_fill_rect(ctx, bounds, 0, GCornerNone);
-
-  // Draw the bar
-  graphics_context_set_fill_color(ctx, GColorBlueMoon);
-  graphics_fill_rect(ctx, GRect(0, 0, width, bounds.size.h), 0, GCornerNone);
+  if (s_battery_level>0) {
+    // Draw the background
+    graphics_context_set_fill_color(ctx, GColorBlack);
+    graphics_fill_rect(ctx, bounds, 0, GCornerNone);
+    // Draw the bar
+    graphics_context_set_fill_color(ctx, GColorBlueMoon);
+    graphics_fill_rect(ctx, GRect(0, 0, width, bounds.size.h), 0, GCornerNone);
+  }
 }
 
 static void bt_update_proc(Layer *layer, GContext *ctx) {
@@ -350,6 +372,65 @@ static void bt_update_proc(Layer *layer, GContext *ctx) {
   graphics_draw_line(ctx, GPoint(16, 16), GPoint(5, 6));
   graphics_draw_line(ctx, GPoint(16, 17), GPoint(5, 7));  
   
+}
+
+static void warp_update_proc(Layer *layer, GContext *ctx) {
+  GRect bounds = layer_get_bounds(layer);
+
+  // Draw the bar
+  if (warpsequence>0) {
+    graphics_context_set_fill_color(ctx, GColorPictonBlue);
+    graphics_fill_rect(ctx, GRect(0, 6-warpsequence, bounds.size.w,2*warpsequence+1), 2, GCornersAll);
+  }
+}
+
+static void update_battery(){
+  battery_callback(battery_state_service_peek());
+}
+
+static void trigger_animation() {
+
+  if ((warpsequence>0) && (warpsequence<8)) {
+    warpsequence++;
+    layer_mark_dirty(s_warp_layer);
+    app_timer_register(TIMER_INTERVAL_MS, trigger_animation, NULL);
+  }
+  else if (warpsequence ==8){
+    warpsequence = 0;
+    layer_mark_dirty(s_warp_layer);
+  
+  // Set start and end
+  GRect from_frame = layer_get_frame(bitmap_layer_get_layer(s_enterprise_layer));
+  GRect to_frame = GRect(144, 58, 144, 32);
+
+  // Create the animation
+  image_property_animation = property_animation_create_layer_frame(bitmap_layer_get_layer(s_enterprise_layer), &from_frame, &to_frame);
+
+  // Configure the animation, these are optional
+  animation_set_duration((Animation*) image_property_animation, TIMER_INTERVAL_MS); // milliseconds
+  animation_set_delay((Animation*) image_property_animation, 10); // milliseconds
+  animation_set_curve((Animation*) image_property_animation, AnimationCurveEaseInOut);
+  // Schedule to occur ASAP with default settings
+  animation_schedule((Animation*) image_property_animation);
+  app_timer_register(2*TIMER_INTERVAL_MS, trigger_animation, NULL);
+  }
+  else {
+    warpsequence =0;
+    //animate back onto the screen
+    GRect from_frame = GRect(-144, 58, 0, 32);
+    GRect to_frame = GRect(0, 58, 144, 32);
+
+    // Create the animation
+    image_property_animation = property_animation_create_layer_frame(bitmap_layer_get_layer(s_enterprise_layer), &from_frame, &to_frame);
+
+    // Configure the animation, these are optional
+    animation_set_duration((Animation*) image_property_animation, TIMER_INTERVAL_MS); // milliseconds
+    animation_set_delay((Animation*) image_property_animation, 10); // milliseconds
+    animation_set_curve((Animation*) image_property_animation, AnimationCurveEaseInOut);
+    // Schedule to occur ASAP with default settings
+    animation_schedule((Animation*) image_property_animation);
+    app_timer_register(TIMER_INTERVAL_MS, update_battery, NULL);
+  }
 }
 
 static void window_load(Window *window) {
@@ -445,7 +526,7 @@ static void window_load(Window *window) {
   layer_add_child(window_layer, text_layer_get_layer(s_batterypercent_layer));
 
   // Create battery meter Layer
-  s_battery_layer = layer_create(GRect(4, 72, 33, 5));
+  s_battery_layer = layer_create(GRect(4, 72, 34, 5));
   layer_set_update_proc(s_battery_layer, battery_update_proc);
   // Add to Window
   layer_add_child(window_get_root_layer(window), s_battery_layer);
@@ -514,7 +595,11 @@ static void window_load(Window *window) {
   text_layer_set_text(s_stardate_layer, "Stardate");
   layer_add_child(window_layer, text_layer_get_layer(s_stardate_layer));
   
-
+  // Create warp engine Layer
+  s_warp_layer = layer_create(GRect(4, 68, 33, 15));
+  layer_set_update_proc(s_warp_layer, warp_update_proc);
+  // Add to Window
+  layer_add_child(window_get_root_layer(window), s_warp_layer);
 }
 
 static void window_unload(Window *window) {
@@ -528,6 +613,9 @@ static void window_unload(Window *window) {
   text_layer_destroy(s_batterypercent_layer);
   text_layer_destroy(s_lifesupport_text_layer);
   text_layer_destroy(icon_weather_layer);
+  text_layer_destroy(s_weeknum_layer);
+  text_layer_destroy(s_weekname_layer);
+  text_layer_destroy(s_weatherdescript_layer);
   
   // Unload GFont
   fonts_unload_custom_font(s_time_font);
@@ -545,6 +633,7 @@ static void window_unload(Window *window) {
   layer_destroy(s_lifesupport_layer);
   layer_destroy(s_lcars_layer);
   layer_destroy(s_bt_layer);
+  layer_destroy(s_warp_layer);
 
   //Destroy Window
   window_destroy(window);
@@ -581,11 +670,24 @@ static void update_time() {
   // Display this time on the TextLayer
   text_layer_set_text(s_time_layer, s_buffer);
   
+  prev_s_step_count = s_step_count;
   s_step_count = get_health(HealthMetricStepCount, 0);
-  if (strcmp(healthmeterselector,"currenttime")==0)
-    {s_step_goal = get_health(HealthMetricStepCount, 1);}
-  else
-    {s_step_goal = get_health(HealthMetricStepCount, 2);}
+  if (prev_s_step_count <=1) {prev_s_step_count = s_step_count;}
+  s_step_average = get_health(HealthMetricStepCount, 1);
+  s_step_goal = get_health(HealthMetricStepCount, 2);
+
+  if ((prev_s_step_count<UserStepGoal)&&(s_step_count>=UserStepGoal)) {
+    warpsequence = 1;
+    static const uint32_t const segments[] = { 200, 200, 50, 50, 50, 50, 100, 200, 400 };
+    s_battery_level = 0;
+    layer_mark_dirty(s_battery_layer);
+    VibePattern pat = {
+      .durations = segments,
+      .num_segments = ARRAY_LENGTH(segments),
+    };
+    vibes_enqueue_custom_pattern(pat);
+    app_timer_register(4*TIMER_INTERVAL_MS, trigger_animation, NULL);
+  }
 
   //char string to hold the date and step for the stardate value
   static char date_buffer[16];
@@ -605,7 +707,7 @@ static void tick_handler(struct tm *tick_time, TimeUnits units_changed) {
   update_time();
   //every 30 minutes do the following
   if(tick_time->tm_min % 30 == 0) {  
-    generic_weather_fetch(weather_callback);
+    if (strlen(ReplacementWeatherMessage)==0) {generic_weather_fetch(weather_callback);}
     //battery numerical display
     if (PowerDisp) {
       snprintf(battery_text, sizeof(battery_text), "Pwr:%d%%", s_battery_level);}
@@ -620,8 +722,10 @@ static void inbox_received_callback(DictionaryIterator *iterator, void *context)
 	Tuple *data = dict_find(iterator, MESSAGE_KEY_READY);
 	if(data)
 	{
-		//APP_LOG(APP_LOG_LEVEL_DEBUG, "Ready Received! Requesting weather.");
-		generic_weather_fetch(weather_callback);
+    if ((strlen(ReplacementWeatherMessage)==0)&&WeatherSetupStatusKey&&WeatherSetupStatusProvider) 
+      {generic_weather_fetch(weather_callback);}
+    else
+      {text_layer_set_text(s_city_layer,"Please save settings");}
 	}
 	
 	data = dict_find(iterator, MESSAGE_KEY_APIKEY);
@@ -629,7 +733,26 @@ static void inbox_received_callback(DictionaryIterator *iterator, void *context)
 	{
 		strcpy(api_key, data->value->cstring);
 		generic_weather_set_api_key(api_key);
-//		generic_weather_fetch(weather_callback);
+    WeatherSetupStatusKey=S_TRUE;
+    //psleep(3000);
+    if ((strlen(ReplacementWeatherMessage)==0)&&WeatherSetupStatusProvider) {generic_weather_fetch(weather_callback);}
+	}
+
+	data = dict_find(iterator, MESSAGE_KEY_STEPGOAL);
+	if(data)
+	{
+		strcpy(StringUserStepGoal, data->value->cstring);
+    UserStepGoal = atoi(StringUserStepGoal);
+	}
+
+	data = dict_find(iterator, MESSAGE_KEY_WEATHERREPLACEMENT);
+	if(data)
+	{
+		strcpy(ReplacementWeatherMessage, data->value->cstring);
+    text_layer_set_text(s_city_layer,ReplacementWeatherMessage);
+    text_layer_set_text(s_temperature_layer,"…");
+    text_layer_set_text(s_weatherdescript_layer," ");
+    text_layer_set_text(icon_weather_layer,"M");
 	}
 
 	data = dict_find(iterator, MESSAGE_KEY_FTICK);
@@ -649,7 +772,7 @@ static void inbox_received_callback(DictionaryIterator *iterator, void *context)
 	if(data)
 	{
 		WeatherDescriptionDisp = data->value->int32 == 1;
-   	generic_weather_fetch(weather_callback);
+    if ((strlen(ReplacementWeatherMessage)==0)&&WeatherSetupStatusKey&&WeatherSetupStatusProvider) {generic_weather_fetch(weather_callback);}
 	}
 
 	data = dict_find(iterator, MESSAGE_KEY_WEEKDAYNAME);
@@ -676,13 +799,17 @@ static void inbox_received_callback(DictionaryIterator *iterator, void *context)
 	{
     strcpy(userweatherprovider, data->value->cstring);
     if (strcmp(userweatherprovider,"OpenWe")==0)
-      {	generic_weather_set_provider(GenericWeatherProviderOpenWeatherMap);}
+      {	generic_weather_set_provider(GenericWeatherProviderOpenWeatherMap);
+      WeatherSetupStatusProvider=S_TRUE;}
     else if(strcmp(userweatherprovider,"WUnder")==0)
-      {generic_weather_set_provider(GenericWeatherProviderWeatherUnderground);}
+      {generic_weather_set_provider(GenericWeatherProviderWeatherUnderground);
+      WeatherSetupStatusProvider=S_TRUE;}
 		else if(strcmp(userweatherprovider,"For.io")==0)
-      {generic_weather_set_provider(GenericWeatherProviderForecastIo);}
-	    generic_weather_fetch(weather_callback);
-      }
+      {generic_weather_set_provider(GenericWeatherProviderForecastIo);
+      WeatherSetupStatusProvider=S_TRUE;}
+    //psleep(3000);
+    if ((strlen(ReplacementWeatherMessage)==0)&&WeatherSetupStatusKey) {generic_weather_fetch(weather_callback);}
+  }
 
 	data = dict_find(iterator, MESSAGE_KEY_WEEKNUMFORMAT);
 	if(data)
@@ -745,26 +872,33 @@ static void init() {
   else {
     snprintf(battery_text, sizeof(battery_text), " ");}
   
+  if (strlen(ReplacementWeatherMessage)>0) {
+    text_layer_set_text(s_city_layer,ReplacementWeatherMessage);
+    text_layer_set_text(s_temperature_layer,"…");
+  }
+  
   // Generic Weather setup and display
   generic_weather_init();
   generic_weather_set_api_key(api_key);
+  if (strlen(api_key)>0) {WeatherSetupStatusKey=S_TRUE;}
   if (strcmp(userweatherprovider,"OpenWe")==0)
-    {generic_weather_set_provider(GenericWeatherProviderOpenWeatherMap);}
+    {generic_weather_set_provider(GenericWeatherProviderOpenWeatherMap);
+    WeatherSetupStatusProvider=S_TRUE;}
   else if(strcmp(userweatherprovider,"WUnder")==0)
-    {generic_weather_set_provider(GenericWeatherProviderWeatherUnderground);}
+    {generic_weather_set_provider(GenericWeatherProviderWeatherUnderground);
+    WeatherSetupStatusProvider=S_TRUE;}
 	else if(strcmp(userweatherprovider,"For.io")==0)
-    {generic_weather_set_provider(GenericWeatherProviderForecastIo);}
+    {generic_weather_set_provider(GenericWeatherProviderForecastIo);
+    WeatherSetupStatusProvider=S_TRUE;}
   else
     {APP_LOG(APP_LOG_LEVEL_DEBUG, "UNKNOWN PROVIDER: -%s-", userweatherprovider);
     }
-//  generic_weather_set_provider(GenericWeatherProviderOpenWeatherMap);
 	events_app_message_request_inbox_size(1024);
 	events_app_message_register_inbox_received(inbox_received_callback, NULL);
 	events_app_message_register_inbox_dropped(inbox_dropped_callback, NULL);
 	events_app_message_register_outbox_failed(outbox_failed_callback, NULL);
 	events_app_message_register_outbox_sent(outbox_sent_callback, NULL);
   events_app_message_open();
-  //app_timer_register(3000, js_ready_handler, NULL);
 }
 
 static void deinit() {
