@@ -21,13 +21,14 @@
             "FTICK",
             "WeatherProvide",
             "POWERDISPLAY",
-            "HealthMeterSelect",
             "UKDATE",
             "WEEKDAYNAME",
             "WEEKNUMFORMAT",
             "WEATHERDESCRIPTION",
             "WEATHERREPLACEMENT",
-            "STEPGOAL"
+            "STEPGOAL",
+            "ANIMATIONENABLED",
+            "DISPLAYSECONDS"
         ],
         "projectType": "native",
         "resources": {

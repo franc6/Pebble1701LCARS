@@ -9,20 +9,11 @@ static TextLayer *s_date_layer, *s_stardate_layer, *s_parsec_layer, *s_batterype
 static BitmapLayer *s_enterprise_layer;
 static GBitmap *s_enterprise_bitmap;
 static char api_key[50];
-static char ReplacementWeatherMessage[21];
-static char userweatherprovider[7];
-static char healthmeterselector[12];
-static char WeekNumDisp[5];
-static char StringUserStepGoal[6];
-static char battery_text[] = "Pwr:100%";
+static char ReplacementWeatherMessage[21], userweatherprovider[7], WeekNumDisp[5], battery_text[] = "Pwr:100%", DateFormatter[]="%m%d%y.";
 static int s_step_count = 1, s_step_goal = 1, s_step_average = 1, prev_s_step_count = 1, UserStepGoal = 7500,s_battery_level, s_battery_charging;
 static Layer *s_battery_layer, *s_lifesupport_layer, *s_lcars_layer, *s_bt_layer, *s_warp_layer;
-static bool F_Tick = S_TRUE;
-static bool PowerDisp = S_TRUE;
-static bool UKDateFormat = S_FALSE;
-static bool WeekdayNameDisp = S_TRUE;
-static bool WeatherDescriptionDisp = S_FALSE;
-static int warpsequence = 0;
+static bool F_Tick = S_TRUE, PowerDisp = S_TRUE, UKDateFormat = S_FALSE, WeekdayNameDisp = S_TRUE, WeatherDescriptionDisp = S_FALSE, AnimationEnabled = S_TRUE, DisplaySeconds = S_FALSE, Watchface_Hibernate = S_FALSE;
+static int warpsequence = 0, sleeptime = 0;
 #define TIMER_INTERVAL_MS 500
 static PropertyAnimation *image_property_animation;
 static bool WeatherSetupStatusKey = S_FALSE, WeatherSetupStatusProvider = S_FALSE;
@@ -35,8 +26,7 @@ static void read_persist()
 	}
 	if(persist_exists(MESSAGE_KEY_STEPGOAL))
 	{
-		persist_read_string(MESSAGE_KEY_STEPGOAL, StringUserStepGoal, sizeof(StringUserStepGoal));
-    UserStepGoal = atoi(StringUserStepGoal);
+		UserStepGoal = persist_read_int(MESSAGE_KEY_STEPGOAL);
 	}
 	if(persist_exists(MESSAGE_KEY_WEATHERREPLACEMENT))
 	{
@@ -46,9 +36,15 @@ static void read_persist()
 	{
 		F_Tick = persist_read_bool(MESSAGE_KEY_FTICK);
 	}
+	if(persist_exists(MESSAGE_KEY_DISPLAYSECONDS))
+	{
+		DisplaySeconds = persist_read_bool(MESSAGE_KEY_DISPLAYSECONDS);
+	}
 	if(persist_exists(MESSAGE_KEY_UKDATE))
 	{
 		UKDateFormat = persist_read_bool(MESSAGE_KEY_UKDATE);
+    if (UKDateFormat)
+      {snprintf(DateFormatter,sizeof(DateFormatter),"%%d%%m%%y.");}
 	}
 	if(persist_exists(MESSAGE_KEY_WEATHERDESCRIPTION))
 	{
@@ -62,6 +58,10 @@ static void read_persist()
 	{
 		PowerDisp = persist_read_bool(MESSAGE_KEY_POWERDISPLAY);
 	}
+	if(persist_exists(MESSAGE_KEY_ANIMATIONENABLED))
+	{
+		AnimationEnabled = persist_read_bool(MESSAGE_KEY_ANIMATIONENABLED);
+	}
 	if(persist_exists(MESSAGE_KEY_WeatherProvide))
 	{
 		persist_read_string(MESSAGE_KEY_WeatherProvide, userweatherprovider, sizeof(userweatherprovider));
@@ -70,25 +70,22 @@ static void read_persist()
 	{
 		persist_read_string(MESSAGE_KEY_WEEKNUMFORMAT, WeekNumDisp, sizeof(WeekNumDisp));
 	}
-	if(persist_exists(MESSAGE_KEY_HealthMeterSelect))
-	{
-		persist_read_string(MESSAGE_KEY_HealthMeterSelect, healthmeterselector, sizeof(healthmeterselector));
-	}
 }
 
 static void store_persist()
 {
-  persist_write_string(MESSAGE_KEY_STEPGOAL, StringUserStepGoal);
+  persist_write_int(MESSAGE_KEY_STEPGOAL, UserStepGoal);
 	persist_write_string(MESSAGE_KEY_APIKEY, api_key);
 	persist_write_string(MESSAGE_KEY_WEATHERREPLACEMENT, ReplacementWeatherMessage);
   persist_write_bool(MESSAGE_KEY_FTICK, F_Tick);
+  persist_write_bool(MESSAGE_KEY_DISPLAYSECONDS, DisplaySeconds);
   persist_write_bool(MESSAGE_KEY_UKDATE, UKDateFormat);
   persist_write_bool(MESSAGE_KEY_WEATHERDESCRIPTION, WeatherDescriptionDisp);
   persist_write_bool(MESSAGE_KEY_WEEKDAYNAME, WeekdayNameDisp);
   persist_write_bool(MESSAGE_KEY_POWERDISPLAY, PowerDisp);
+  persist_write_bool(MESSAGE_KEY_ANIMATIONENABLED, AnimationEnabled);
 	persist_write_string(MESSAGE_KEY_WeatherProvide, userweatherprovider);
 	persist_write_string(MESSAGE_KEY_WEEKNUMFORMAT, WeekNumDisp);
-	persist_write_string(MESSAGE_KEY_HealthMeterSelect, healthmeterselector);
 }
 
 static void bluetooth_callback(bool connected) {
@@ -602,6 +599,265 @@ static void window_load(Window *window) {
   layer_add_child(window_get_root_layer(window), s_warp_layer);
 }
 
+static void update_time() {
+  // Get a tm structure
+  time_t temp = time(NULL);
+  struct tm *tick_time = localtime(&temp);
+
+  // Write the current hours and minutes into a buffer
+  static char s_buffer[8];
+  strftime(s_buffer, sizeof(s_buffer), clock_is_24h_style() ?
+                                          "%H%M" : "%I%M", tick_time);
+
+  if (WeekdayNameDisp) {
+    static char s_weekdayname[4];
+    static char s_weekdayname1[3];
+    strftime(s_weekdayname, sizeof(s_weekdayname), "%a", tick_time);
+    snprintf(s_weekdayname1,sizeof(s_weekdayname1),"%s",s_weekdayname);
+    text_layer_set_text(s_weekname_layer, s_weekdayname1);}
+  else {
+    text_layer_set_text(s_weekname_layer, " ");}
+
+  if ((strcmp(WeekNumDisp,"none")==0) || (strcmp(WeekNumDisp,"")==0))
+      {text_layer_set_text(s_weeknum_layer, " ");}
+  else {
+    static char s_weeknum[3];
+    static char s_weeknum1[4];
+    strftime(s_weeknum, sizeof(s_weeknum), WeekNumDisp, tick_time);
+    snprintf(s_weeknum1,sizeof(s_weeknum1),"#%s",s_weeknum);
+    text_layer_set_text(s_weeknum_layer, s_weeknum1);}
+
+  // Display this time on the TextLayer
+  text_layer_set_text(s_time_layer, s_buffer);
+  
+  //char string to hold the date and step for the stardate value
+  static char date_buffer[16];
+  static char date_step_buffer[16];
+  // Copy date into buffer from tm structure
+  strftime(date_buffer, sizeof(date_buffer), DateFormatter, tick_time);
+  if (DisplaySeconds) {
+    static char s_seconds_buffer[3];
+    strftime(s_seconds_buffer,sizeof(s_seconds_buffer),"%S",tick_time);
+    snprintf(date_step_buffer,sizeof(date_step_buffer),"%s%s",date_buffer,s_seconds_buffer);
+  } else {
+    //pull the current step count appending to the date buffer
+    snprintf(date_step_buffer,sizeof(date_step_buffer),"%s%d",date_buffer,s_step_count);
+  }
+  // Show the stardate
+  text_layer_set_text(s_date_layer, date_step_buffer);
+}
+
+static void update_steps(){
+  prev_s_step_count = s_step_count;
+  s_step_count = get_health(HealthMetricStepCount, 0);
+  if (prev_s_step_count <=1) {prev_s_step_count = s_step_count;}
+  s_step_average = get_health(HealthMetricStepCount, 1);
+  s_step_goal = get_health(HealthMetricStepCount, 2);
+
+  if ((prev_s_step_count<UserStepGoal)&&(s_step_count>=UserStepGoal)) {
+    static const uint32_t const segments[] = { 200, 200, 50, 50, 50, 50, 100, 200, 400 };
+    VibePattern pat = {
+      .durations = segments,
+      .num_segments = ARRAY_LENGTH(segments),
+    };
+    vibes_enqueue_custom_pattern(pat);
+    if (AnimationEnabled) {
+      warpsequence = 1;
+      s_battery_level = 0;
+      layer_mark_dirty(s_battery_layer);
+      app_timer_register(4*TIMER_INTERVAL_MS, trigger_animation, NULL);
+    }
+  }
+}
+
+bool is_user_sleeping() {
+  static bool is_sleeping=S_FALSE;
+  HealthActivityMask activities = health_service_peek_current_activities();
+  is_sleeping = activities & HealthActivitySleep || activities & HealthActivityRestfulSleep;
+  return is_sleeping;
+}
+
+static void tick_handler(struct tm *tick_time, TimeUnits units_changed) {
+  if (!Watchface_Hibernate) {
+    if (tick_time->tm_sec==0) {
+      update_steps();
+      update_time();
+    } else if (DisplaySeconds) {
+      update_time();
+    }
+  
+    //every 30 minutes do the following
+    if ((tick_time->tm_min % 30 == 0)&&(tick_time->tm_sec==0)) {  
+      if (strlen(ReplacementWeatherMessage)==0) {generic_weather_fetch(weather_callback);}
+      //battery numerical display
+/*      if (PowerDisp) {
+        snprintf(battery_text, sizeof(battery_text), "Pwr:%d%%", s_battery_level);}
+      else {
+        snprintf(battery_text, sizeof(battery_text), " ");}*/
+      snprintf(battery_text, sizeof(battery_text), "%d", sleeptime);
+      text_layer_set_text(s_batterypercent_layer, battery_text); 
+    }
+  
+    if (tick_time->tm_min % 10 == 0) {
+      //every 10 minutes check if the user is sleeping
+      if (is_user_sleeping()) {
+        Watchface_Hibernate = S_TRUE;
+        sleeptime++;
+      }
+    }
+  } else {
+      if ((tick_time->tm_min % 10 == 0)&&(tick_time->tm_sec==0)) {
+        if (!is_user_sleeping()) {
+          Watchface_Hibernate=S_FALSE;
+          update_steps();
+          update_time();
+          if (strlen(ReplacementWeatherMessage)==0) {generic_weather_fetch(weather_callback);}
+        }           
+      }
+    sleeptime++;
+  }
+}
+
+static void inbox_received_callback(DictionaryIterator *iterator, void *context)
+{
+  Tuple *data = dict_find(iterator, MESSAGE_KEY_READY);
+	if(data)
+	{
+  	APP_LOG(APP_LOG_LEVEL_DEBUG, "Ready Recieved");
+	}
+	
+	data = dict_find(iterator, MESSAGE_KEY_APIKEY);
+	if(data)
+	{
+		strcpy(api_key, data->value->cstring);
+		generic_weather_set_api_key(api_key);
+    WeatherSetupStatusKey=S_TRUE;
+	}
+
+	data = dict_find(iterator, MESSAGE_KEY_STEPGOAL);
+	if(data)
+	{
+		UserStepGoal = data->value->int32;
+	}
+
+	data = dict_find(iterator, MESSAGE_KEY_WEATHERREPLACEMENT);
+	if(data)
+	{
+		strcpy(ReplacementWeatherMessage, data->value->cstring);
+  }
+
+	data = dict_find(iterator, MESSAGE_KEY_FTICK);
+	if(data)
+	{
+		F_Tick = data->value->int32 == 1;
+	}
+
+	data = dict_find(iterator, MESSAGE_KEY_DISPLAYSECONDS);
+	if(data)
+	{
+		DisplaySeconds = data->value->int32 == 1;
+    events_tick_timer_service_unsubscribe(tick_handler);
+    if (DisplaySeconds) {
+      events_tick_timer_service_subscribe(SECOND_UNIT, tick_handler);
+    } else {
+      events_tick_timer_service_subscribe(MINUTE_UNIT, tick_handler);
+    }
+  }
+
+	data = dict_find(iterator, MESSAGE_KEY_UKDATE);
+	if(data)
+	{
+		UKDateFormat = data->value->int32 == 1;
+    if (UKDateFormat)
+      {snprintf(DateFormatter,sizeof(DateFormatter),"%%d%%m%%y.");}
+  }
+
+	data = dict_find(iterator, MESSAGE_KEY_ANIMATIONENABLED);
+	if(data)
+	{
+		AnimationEnabled = data->value->int32 == 1;
+	}
+
+	data = dict_find(iterator, MESSAGE_KEY_WEATHERDESCRIPTION);
+	if(data)
+	{
+		WeatherDescriptionDisp = data->value->int32 == 1;
+	}
+
+	data = dict_find(iterator, MESSAGE_KEY_WEEKDAYNAME);
+	if(data)
+	{
+		WeekdayNameDisp = data->value->int32 == 1;
+	}
+
+	data = dict_find(iterator, MESSAGE_KEY_POWERDISPLAY);
+	if(data)
+	{
+		PowerDisp = data->value->int32 == 1;
+    //battery numerical display
+    if (PowerDisp) {
+      snprintf(battery_text, sizeof(battery_text), "Pwr:%d%%", s_battery_level);}
+    else {
+      snprintf(battery_text, sizeof(battery_text), " ");}
+    text_layer_set_text(s_batterypercent_layer, battery_text); 
+	}
+
+	data = dict_find(iterator, MESSAGE_KEY_WeatherProvide);
+	if(data)
+	{
+    strcpy(userweatherprovider, data->value->cstring);
+    if (strcmp(userweatherprovider,"OpenWe")==0)
+      {	generic_weather_set_provider(GenericWeatherProviderOpenWeatherMap);
+      WeatherSetupStatusProvider=S_TRUE;}
+    else if(strcmp(userweatherprovider,"WUnder")==0)
+      {generic_weather_set_provider(GenericWeatherProviderWeatherUnderground);
+      WeatherSetupStatusProvider=S_TRUE;}
+		else if(strcmp(userweatherprovider,"For.io")==0)
+      {generic_weather_set_provider(GenericWeatherProviderForecastIo);
+      WeatherSetupStatusProvider=S_TRUE;}
+  }
+
+	data = dict_find(iterator, MESSAGE_KEY_WEEKNUMFORMAT);
+	if(data)
+	{
+    strcpy(WeekNumDisp, data->value->cstring);
+  }
+
+  update_steps();
+  APP_LOG(APP_LOG_LEVEL_DEBUG, "Inbox Updating time");
+  update_time();
+  if (strlen(ReplacementWeatherMessage)==0) {
+    if (WeatherSetupStatusKey&&WeatherSetupStatusProvider) {
+      APP_LOG(APP_LOG_LEVEL_DEBUG, "Calling Weather");
+      //generic_weather_fetch(weather_callback);
+    }
+    else {
+      text_layer_set_text(s_city_layer,"Please save settings");
+    }
+  }
+  else {
+    text_layer_set_text(s_city_layer,ReplacementWeatherMessage);
+    text_layer_set_text(s_temperature_layer,"…");
+    text_layer_set_text(s_weatherdescript_layer," ");
+    text_layer_set_text(icon_weather_layer,"M");
+  }
+}
+
+static void inbox_dropped_callback(AppMessageResult reason, void *context)
+{
+	APP_LOG(APP_LOG_LEVEL_ERROR, "Message dropped!");
+}
+
+static void outbox_failed_callback(DictionaryIterator *iterator, AppMessageResult reason, void *context)
+{
+	APP_LOG(APP_LOG_LEVEL_ERROR, "Outbox send failed!");
+}
+
+static void outbox_sent_callback(DictionaryIterator *iterator, void *context)
+{
+	APP_LOG(APP_LOG_LEVEL_INFO, "Outbox send success!");
+}
+
 static void window_unload(Window *window) {
   // Destroy TextLayer
   text_layer_destroy(s_city_layer);
@@ -635,210 +891,17 @@ static void window_unload(Window *window) {
   layer_destroy(s_bt_layer);
   layer_destroy(s_warp_layer);
 
-  //Destroy Window
+  //unsubscribe from services
+  events_battery_state_service_unsubscribe(battery_callback);
+  events_connection_service_unsubscribe(bluetooth_callback);
+  events_tick_timer_service_unsubscribe(tick_handler);
+  events_app_message_unsubscribe(inbox_received_callback);
+  events_app_message_unsubscribe(inbox_dropped_callback);
+  events_app_message_unsubscribe(outbox_failed_callback);
+  events_app_message_unsubscribe(outbox_sent_callback);
+
+    //Destroy Window
   window_destroy(window);
-}
-
-static void update_time() {
-  // Get a tm structure
-  time_t temp = time(NULL);
-  struct tm *tick_time = localtime(&temp);
-
-  // Write the current hours and minutes into a buffer
-  static char s_buffer[8];
-  strftime(s_buffer, sizeof(s_buffer), clock_is_24h_style() ?
-                                          "%H%M" : "%I%M", tick_time);
-
-  if (WeekdayNameDisp) {
-    static char s_weekdayname[4];
-    static char s_weekdayname1[3];
-    strftime(s_weekdayname, sizeof(s_weekdayname), "%a", tick_time);
-    snprintf(s_weekdayname1,sizeof(s_weekdayname1),"%s",s_weekdayname);
-    text_layer_set_text(s_weekname_layer, s_weekdayname1);}
-  else {
-    text_layer_set_text(s_weekname_layer, " ");}
-
-  if ((strcmp(WeekNumDisp,"none")==0) || (strcmp(WeekNumDisp,"")==0))
-      {text_layer_set_text(s_weeknum_layer, " ");}
-  else {
-    static char s_weeknum[3];
-    static char s_weeknum1[4];
-    strftime(s_weeknum, sizeof(s_weeknum), WeekNumDisp, tick_time);
-    snprintf(s_weeknum1,sizeof(s_weeknum1),"#%s",s_weeknum);
-    text_layer_set_text(s_weeknum_layer, s_weeknum1);}
-
-  // Display this time on the TextLayer
-  text_layer_set_text(s_time_layer, s_buffer);
-  
-  prev_s_step_count = s_step_count;
-  s_step_count = get_health(HealthMetricStepCount, 0);
-  if (prev_s_step_count <=1) {prev_s_step_count = s_step_count;}
-  s_step_average = get_health(HealthMetricStepCount, 1);
-  s_step_goal = get_health(HealthMetricStepCount, 2);
-
-  if ((prev_s_step_count<UserStepGoal)&&(s_step_count>=UserStepGoal)) {
-    warpsequence = 1;
-    static const uint32_t const segments[] = { 200, 200, 50, 50, 50, 50, 100, 200, 400 };
-    s_battery_level = 0;
-    layer_mark_dirty(s_battery_layer);
-    VibePattern pat = {
-      .durations = segments,
-      .num_segments = ARRAY_LENGTH(segments),
-    };
-    vibes_enqueue_custom_pattern(pat);
-    app_timer_register(4*TIMER_INTERVAL_MS, trigger_animation, NULL);
-  }
-
-  //char string to hold the date and step for the stardate value
-  static char date_buffer[16];
-  static char date_step_buffer[16];
-  // Copy date into buffer from tm structure
-  if (UKDateFormat)
-    {strftime(date_buffer, sizeof(date_buffer), "%d%m%y.", tick_time);}
-  else
-    {strftime(date_buffer, sizeof(date_buffer), "%m%d%y.", tick_time);}
-  //pull the current step count appending to the date buffer
-  snprintf(date_step_buffer,sizeof(date_step_buffer),"%s%d",date_buffer,s_step_count);
-  // Show the stardate
-  text_layer_set_text(s_date_layer, date_step_buffer);
-}
-
-static void tick_handler(struct tm *tick_time, TimeUnits units_changed) {
-  update_time();
-  //every 30 minutes do the following
-  if(tick_time->tm_min % 30 == 0) {  
-    if (strlen(ReplacementWeatherMessage)==0) {generic_weather_fetch(weather_callback);}
-    //battery numerical display
-    if (PowerDisp) {
-      snprintf(battery_text, sizeof(battery_text), "Pwr:%d%%", s_battery_level);}
-    else {
-      snprintf(battery_text, sizeof(battery_text), " ");}
-    text_layer_set_text(s_batterypercent_layer, battery_text); 
-}
-}
-
-static void inbox_received_callback(DictionaryIterator *iterator, void *context)
-{
-	Tuple *data = dict_find(iterator, MESSAGE_KEY_READY);
-	if(data)
-	{
-    if ((strlen(ReplacementWeatherMessage)==0)&&WeatherSetupStatusKey&&WeatherSetupStatusProvider) 
-      {generic_weather_fetch(weather_callback);}
-    else
-      {text_layer_set_text(s_city_layer,"Please save settings");}
-	}
-	
-	data = dict_find(iterator, MESSAGE_KEY_APIKEY);
-	if(data)
-	{
-		strcpy(api_key, data->value->cstring);
-		generic_weather_set_api_key(api_key);
-    WeatherSetupStatusKey=S_TRUE;
-    //psleep(3000);
-    if ((strlen(ReplacementWeatherMessage)==0)&&WeatherSetupStatusProvider) {generic_weather_fetch(weather_callback);}
-	}
-
-	data = dict_find(iterator, MESSAGE_KEY_STEPGOAL);
-	if(data)
-	{
-		strcpy(StringUserStepGoal, data->value->cstring);
-    UserStepGoal = atoi(StringUserStepGoal);
-	}
-
-	data = dict_find(iterator, MESSAGE_KEY_WEATHERREPLACEMENT);
-	if(data)
-	{
-		strcpy(ReplacementWeatherMessage, data->value->cstring);
-    text_layer_set_text(s_city_layer,ReplacementWeatherMessage);
-    text_layer_set_text(s_temperature_layer,"…");
-    text_layer_set_text(s_weatherdescript_layer," ");
-    text_layer_set_text(icon_weather_layer,"M");
-	}
-
-	data = dict_find(iterator, MESSAGE_KEY_FTICK);
-	if(data)
-	{
-		F_Tick = data->value->int32 == 1;
-	}
-
-	data = dict_find(iterator, MESSAGE_KEY_UKDATE);
-	if(data)
-	{
-		UKDateFormat = data->value->int32 == 1;
-   	update_time();
-	}
-
-	data = dict_find(iterator, MESSAGE_KEY_WEATHERDESCRIPTION);
-	if(data)
-	{
-		WeatherDescriptionDisp = data->value->int32 == 1;
-    if ((strlen(ReplacementWeatherMessage)==0)&&WeatherSetupStatusKey&&WeatherSetupStatusProvider) {generic_weather_fetch(weather_callback);}
-	}
-
-	data = dict_find(iterator, MESSAGE_KEY_WEEKDAYNAME);
-	if(data)
-	{
-		WeekdayNameDisp = data->value->int32 == 1;
-   	update_time();
-	}
-
-	data = dict_find(iterator, MESSAGE_KEY_POWERDISPLAY);
-	if(data)
-	{
-		PowerDisp = data->value->int32 == 1;
-    //battery numerical display
-    if (PowerDisp) {
-      snprintf(battery_text, sizeof(battery_text), "Pwr:%d%%", s_battery_level);}
-    else {
-      snprintf(battery_text, sizeof(battery_text), " ");}
-    text_layer_set_text(s_batterypercent_layer, battery_text); 
-	}
-
-	data = dict_find(iterator, MESSAGE_KEY_WeatherProvide);
-	if(data)
-	{
-    strcpy(userweatherprovider, data->value->cstring);
-    if (strcmp(userweatherprovider,"OpenWe")==0)
-      {	generic_weather_set_provider(GenericWeatherProviderOpenWeatherMap);
-      WeatherSetupStatusProvider=S_TRUE;}
-    else if(strcmp(userweatherprovider,"WUnder")==0)
-      {generic_weather_set_provider(GenericWeatherProviderWeatherUnderground);
-      WeatherSetupStatusProvider=S_TRUE;}
-		else if(strcmp(userweatherprovider,"For.io")==0)
-      {generic_weather_set_provider(GenericWeatherProviderForecastIo);
-      WeatherSetupStatusProvider=S_TRUE;}
-    //psleep(3000);
-    if ((strlen(ReplacementWeatherMessage)==0)&&WeatherSetupStatusKey) {generic_weather_fetch(weather_callback);}
-  }
-
-	data = dict_find(iterator, MESSAGE_KEY_WEEKNUMFORMAT);
-	if(data)
-	{
-    strcpy(WeekNumDisp, data->value->cstring);
-  	update_time();
-  }
-
-	data = dict_find(iterator, MESSAGE_KEY_HealthMeterSelect);
-	if(data)
-	{
-    strcpy(healthmeterselector, data->value->cstring);
-  	update_time();
-  }
-}
-
-static void inbox_dropped_callback(AppMessageResult reason, void *context)
-{
-	APP_LOG(APP_LOG_LEVEL_ERROR, "Message dropped!");
-}
-
-static void outbox_failed_callback(DictionaryIterator *iterator, AppMessageResult reason, void *context)
-{
-	APP_LOG(APP_LOG_LEVEL_ERROR, "Outbox send failed!");
-}
-
-static void outbox_sent_callback(DictionaryIterator *iterator, void *context)
-{
-	APP_LOG(APP_LOG_LEVEL_INFO, "Outbox send success!");
 }
 
 static void init() {
@@ -853,8 +916,11 @@ static void init() {
 	read_persist();
   
   // Register with TickTimerService
-  events_tick_timer_service_subscribe(MINUTE_UNIT, tick_handler);
-  // Make sure the time is displayed from the start
+  if (DisplaySeconds) {
+    events_tick_timer_service_subscribe(SECOND_UNIT, tick_handler);
+  } else {
+    events_tick_timer_service_subscribe(MINUTE_UNIT, tick_handler);
+  }
 	
   // Register for battery level updates
   events_battery_state_service_subscribe(battery_callback);
@@ -863,7 +929,10 @@ static void init() {
     
   // Register for Bluetooth connection updates
   events_connection_service_subscribe((ConnectionHandlers) {.pebble_app_connection_handler = bluetooth_callback});
-	update_time();
+
+  // Make sure the time and steps are displayed from the start
+	update_steps();
+  update_time();
 
   //initialize battery numerical display
   if (PowerDisp) {

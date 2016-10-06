@@ -28,6 +28,12 @@ module.exports = [
       },
       {
         "type": "toggle",
+        "messageKey": "DISPLAYSECONDS",
+        "label": "Display seconds instead of the number of steps?",
+        "defaultValue": false
+      },
+      {
+        "type": "toggle",
         "messageKey": "WEEKDAYNAME",
         "label": "Display the abbreviated weekday name at the top left?",
         "defaultValue": true
@@ -56,10 +62,20 @@ module.exports = [
           }]
       },
       {
-        "type": "input",
+        "type": "slider",
         "messageKey": "STEPGOAL",
-        "defaultValue": "7500",
-        "label": "Set your daily step goal and your watch will buzz and display an animation when you achieve that goal.  Set to 0 to disable both functions."
+        "defaultValue": 7500,
+        "label": "Daily Step Goal",
+        "description": "Set your daily step goal and your watch will buzz when you achieve that goal.  You will recieve a long-short-short-long vibration pattern when you meet this goal",
+        "min": 5000,
+        "max": 20000,
+        "step": 500
+      },
+      {
+        "type": "toggle",
+        "messageKey": "ANIMATIONENABLED",
+        "label": "Enable a custom animation when achieve your step goal?  If enabled the vibration pattern be the notification to glance down the the animation, disabling will save some power.",
+        "defaultValue": true
       }
     ]
     },
@@ -74,6 +90,7 @@ module.exports = [
         "type": "input",
         "messageKey": "WEATHERREPLACEMENT",
         "defaultValue": "",
+        "limit":20,
         "label": "If you would like to disable weather, enter a short 20 character message to display instead.  Note: depending on the characters used, you may not have room to display all 20 characters.  When this field is blank, we will poll weather."
       },
       {
