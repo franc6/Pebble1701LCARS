@@ -686,15 +686,16 @@ static void tick_handler(struct tm *tick_time, TimeUnits units_changed) {
       update_time();
     }
   
+    snprintf(battery_text, sizeof(battery_text), "S: %d", sleeptime);
+    text_layer_set_text(s_batterypercent_layer, battery_text); 
     //every 30 minutes do the following
     if ((tick_time->tm_min % 30 == 0)&&(tick_time->tm_sec==0)) {  
       if (strlen(ReplacementWeatherMessage)==0) {generic_weather_fetch(weather_callback);}
       //battery numerical display
-/*      if (PowerDisp) {
+      if (PowerDisp) {
         snprintf(battery_text, sizeof(battery_text), "Pwr:%d%%", s_battery_level);}
       else {
-        snprintf(battery_text, sizeof(battery_text), " ");}*/
-      snprintf(battery_text, sizeof(battery_text), "%d", sleeptime);
+        snprintf(battery_text, sizeof(battery_text), " ");}
       text_layer_set_text(s_batterypercent_layer, battery_text); 
     }
   
@@ -723,15 +724,29 @@ static void inbox_received_callback(DictionaryIterator *iterator, void *context)
   Tuple *data = dict_find(iterator, MESSAGE_KEY_READY);
 	if(data)
 	{
-  	APP_LOG(APP_LOG_LEVEL_DEBUG, "Ready Recieved");
+  	//APP_LOG(APP_LOG_LEVEL_DEBUG, "Ready Recieved");
+    //If we just recieved a ready then we are launching the watchface.  init already called update_steps and update_time, we we only need to refresh the weather
+    if (strlen(ReplacementWeatherMessage)==0) {
+      if (WeatherSetupStatusKey&&WeatherSetupStatusProvider) {
+//        APP_LOG(APP_LOG_LEVEL_DEBUG, "Calling Weather");
+        generic_weather_fetch(weather_callback);
+      }
+      else {
+        text_layer_set_text(s_city_layer,"Please save settings");
+      }
+    }
 	}
 	
 	data = dict_find(iterator, MESSAGE_KEY_APIKEY);
 	if(data)
 	{
 		strcpy(api_key, data->value->cstring);
-		generic_weather_set_api_key(api_key);
-    WeatherSetupStatusKey=S_TRUE;
+    if (strlen(api_key)>0) {
+      generic_weather_set_api_key(api_key);
+      WeatherSetupStatusKey=S_TRUE;
+    } else {
+      WeatherSetupStatusKey=S_FALSE;
+    }
 	}
 
 	data = dict_find(iterator, MESSAGE_KEY_STEPGOAL);
@@ -808,38 +823,39 @@ static void inbox_received_callback(DictionaryIterator *iterator, void *context)
     strcpy(userweatherprovider, data->value->cstring);
     if (strcmp(userweatherprovider,"OpenWe")==0)
       {	generic_weather_set_provider(GenericWeatherProviderOpenWeatherMap);
-      WeatherSetupStatusProvider=S_TRUE;}
+       WeatherSetupStatusProvider=S_TRUE;}
     else if(strcmp(userweatherprovider,"WUnder")==0)
       {generic_weather_set_provider(GenericWeatherProviderWeatherUnderground);
-      WeatherSetupStatusProvider=S_TRUE;}
-		else if(strcmp(userweatherprovider,"For.io")==0)
+       WeatherSetupStatusProvider=S_TRUE;}
+  	else if(strcmp(userweatherprovider,"For.io")==0)
       {generic_weather_set_provider(GenericWeatherProviderForecastIo);
-      WeatherSetupStatusProvider=S_TRUE;}
+       WeatherSetupStatusProvider=S_TRUE;}
+    else
+      {WeatherSetupStatusProvider = S_FALSE;}
   }
 
 	data = dict_find(iterator, MESSAGE_KEY_WEEKNUMFORMAT);
 	if(data)
-	{
+	{  //all setting are set each time the user saves settings.  Since this is the last one refresh all displays so their new settings.
     strcpy(WeekNumDisp, data->value->cstring);
-  }
-
-  update_steps();
-  APP_LOG(APP_LOG_LEVEL_DEBUG, "Inbox Updating time");
-  update_time();
-  if (strlen(ReplacementWeatherMessage)==0) {
-    if (WeatherSetupStatusKey&&WeatherSetupStatusProvider) {
-      APP_LOG(APP_LOG_LEVEL_DEBUG, "Calling Weather");
-      //generic_weather_fetch(weather_callback);
+    update_steps();
+//    APP_LOG(APP_LOG_LEVEL_DEBUG, "Inbox Updating time");
+    update_time();
+    if (strlen(ReplacementWeatherMessage)==0) {
+      if (WeatherSetupStatusKey&&WeatherSetupStatusProvider) {
+//        APP_LOG(APP_LOG_LEVEL_DEBUG, "Calling Weather");
+        generic_weather_fetch(weather_callback);
+      }
+      else {
+        text_layer_set_text(s_city_layer,"Please save settings");
+      }
     }
     else {
-      text_layer_set_text(s_city_layer,"Please save settings");
+      text_layer_set_text(s_city_layer,ReplacementWeatherMessage);
+      text_layer_set_text(s_temperature_layer,"…");
+      text_layer_set_text(s_weatherdescript_layer," ");
+      text_layer_set_text(icon_weather_layer,"M");  //this is the voyager com badge icon for the custom font
     }
-  }
-  else {
-    text_layer_set_text(s_city_layer,ReplacementWeatherMessage);
-    text_layer_set_text(s_temperature_layer,"…");
-    text_layer_set_text(s_weatherdescript_layer," ");
-    text_layer_set_text(icon_weather_layer,"M");
   }
 }
 
