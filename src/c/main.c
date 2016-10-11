@@ -13,61 +13,53 @@ static char ReplacementWeatherMessage[21], userweatherprovider[7], WeekNumDisp[5
 static int s_step_count = 1, s_step_goal = 1, s_step_average = 1, prev_s_step_count = 1, UserStepGoal = 7500,s_battery_level, s_battery_charging;
 static Layer *s_battery_layer, *s_lifesupport_layer, *s_lcars_layer, *s_bt_layer, *s_warp_layer;
 static bool F_Tick = S_TRUE, PowerDisp = S_TRUE, UKDateFormat = S_FALSE, WeekdayNameDisp = S_TRUE, WeatherDescriptionDisp = S_FALSE, AnimationEnabled = S_TRUE, DisplaySeconds = S_FALSE, Watchface_Hibernate = S_FALSE;
-static int warpsequence = 0, sleeptime = 0;
+static int warpsequence = 0, text_color_value =0, UserManualSleepStart=24;
 #define TIMER_INTERVAL_MS 500
 static PropertyAnimation *image_property_animation;
 static bool WeatherSetupStatusKey = S_FALSE, WeatherSetupStatusProvider = S_FALSE;
+GColor text_color;
 
 static void read_persist()
 {
-	if(persist_exists(MESSAGE_KEY_APIKEY))
-	{
+  if(persist_exists(MESSAGE_KEY_APIKEY)) 	{
 		persist_read_string(MESSAGE_KEY_APIKEY, api_key, sizeof(api_key));
 	}
-	if(persist_exists(MESSAGE_KEY_STEPGOAL))
-	{
+	if(persist_exists(MESSAGE_KEY_STEPGOAL)) 	{
 		UserStepGoal = persist_read_int(MESSAGE_KEY_STEPGOAL);
 	}
-	if(persist_exists(MESSAGE_KEY_WEATHERREPLACEMENT))
-	{
+	if(persist_exists(MESSAGE_KEY_MANUALSLEEPSTART)) 	{
+		UserManualSleepStart = persist_read_int(MESSAGE_KEY_MANUALSLEEPSTART);
+	}
+	if(persist_exists(MESSAGE_KEY_WEATHERREPLACEMENT)) 	{
 		persist_read_string(MESSAGE_KEY_WEATHERREPLACEMENT, ReplacementWeatherMessage, sizeof(ReplacementWeatherMessage));
 	}
-	if(persist_exists(MESSAGE_KEY_FTICK))
-	{
+	if(persist_exists(MESSAGE_KEY_FTICK)) {
 		F_Tick = persist_read_bool(MESSAGE_KEY_FTICK);
 	}
-	if(persist_exists(MESSAGE_KEY_DISPLAYSECONDS))
-	{
+	if(persist_exists(MESSAGE_KEY_DISPLAYSECONDS)) {
 		DisplaySeconds = persist_read_bool(MESSAGE_KEY_DISPLAYSECONDS);
 	}
-	if(persist_exists(MESSAGE_KEY_UKDATE))
-	{
+	if(persist_exists(MESSAGE_KEY_UKDATE)) 	{
 		UKDateFormat = persist_read_bool(MESSAGE_KEY_UKDATE);
     if (UKDateFormat)
       {snprintf(DateFormatter,sizeof(DateFormatter),"%%d%%m%%y.");}
 	}
-	if(persist_exists(MESSAGE_KEY_WEATHERDESCRIPTION))
-	{
+	if(persist_exists(MESSAGE_KEY_WEATHERDESCRIPTION)) {
 		WeatherDescriptionDisp = persist_read_bool(MESSAGE_KEY_WEATHERDESCRIPTION);
 	}
-	if(persist_exists(MESSAGE_KEY_WEEKDAYNAME))
-	{
+	if(persist_exists(MESSAGE_KEY_WEEKDAYNAME))	{
 		WeekdayNameDisp = persist_read_bool(MESSAGE_KEY_WEEKDAYNAME);
 	}
-	if(persist_exists(MESSAGE_KEY_POWERDISPLAY))
-	{
+	if(persist_exists(MESSAGE_KEY_POWERDISPLAY)) {
 		PowerDisp = persist_read_bool(MESSAGE_KEY_POWERDISPLAY);
 	}
-	if(persist_exists(MESSAGE_KEY_ANIMATIONENABLED))
-	{
+	if(persist_exists(MESSAGE_KEY_ANIMATIONENABLED)) {
 		AnimationEnabled = persist_read_bool(MESSAGE_KEY_ANIMATIONENABLED);
 	}
-	if(persist_exists(MESSAGE_KEY_WeatherProvide))
-	{
+	if(persist_exists(MESSAGE_KEY_WeatherProvide)) {
 		persist_read_string(MESSAGE_KEY_WeatherProvide, userweatherprovider, sizeof(userweatherprovider));
 	}
-	if(persist_exists(MESSAGE_KEY_WEEKNUMFORMAT))
-	{
+	if(persist_exists(MESSAGE_KEY_WEEKNUMFORMAT)) {
 		persist_read_string(MESSAGE_KEY_WEEKNUMFORMAT, WeekNumDisp, sizeof(WeekNumDisp));
 	}
 }
@@ -75,6 +67,7 @@ static void read_persist()
 static void store_persist()
 {
   persist_write_int(MESSAGE_KEY_STEPGOAL, UserStepGoal);
+  persist_write_int(MESSAGE_KEY_MANUALSLEEPSTART, UserManualSleepStart);
 	persist_write_string(MESSAGE_KEY_APIKEY, api_key);
 	persist_write_string(MESSAGE_KEY_WEATHERREPLACEMENT, ReplacementWeatherMessage);
   persist_write_bool(MESSAGE_KEY_FTICK, F_Tick);
@@ -86,6 +79,7 @@ static void store_persist()
   persist_write_bool(MESSAGE_KEY_ANIMATIONENABLED, AnimationEnabled);
 	persist_write_string(MESSAGE_KEY_WeatherProvide, userweatherprovider);
 	persist_write_string(MESSAGE_KEY_WEEKNUMFORMAT, WeekNumDisp);
+  if (text_color_value >0) { persist_write_int(MESSAGE_KEY_TEXTCOLOR, text_color_value); }
 }
 
 static void bluetooth_callback(bool connected) {
@@ -169,12 +163,6 @@ static void lifesupport_update_proc(Layer *layer, GContext *ctx) {
   //  graphics_context_set_fill_color(ctx, GColorWhite);
   //  graphics_fill_rect(ctx, bounds, 0, GCornerNone);
 
-  // Draw the bar
-/*  if (strcmp(healthmeterselector,"currenttime")==0)
-    {graphics_context_set_fill_color(ctx, GColorMidnightGreen);}
-  else
-    {graphics_context_set_fill_color(ctx, GColorBlueMoon);}
-*/
   graphics_context_set_fill_color(ctx, GColorBlueMoon);
   graphics_fill_rect(ctx, GRect(0, 0, goalwidth, bounds.size.h), 0, GCornerNone);
   graphics_context_set_fill_color(ctx, GColorMidnightGreen);
@@ -324,11 +312,13 @@ static void weather_callback(GenericWeatherInfo *info, GenericWeatherStatus stat
 }
 
 static void battery_callback(BatteryChargeState state) {
-  // Record the new battery level
-  s_battery_level = state.charge_percent;
-  s_battery_charging = state.is_charging;
-  // Update meter
-  layer_mark_dirty(s_battery_layer);
+  if (warpsequence==0) {
+    // Record the new battery level
+    s_battery_level = state.charge_percent;
+    s_battery_charging = state.is_charging;
+    // Update meter
+    layer_mark_dirty(s_battery_layer);
+  }
 }
 
 static void battery_update_proc(Layer *layer, GContext *ctx) {
@@ -357,7 +347,6 @@ static void bt_update_proc(Layer *layer, GContext *ctx) {
   else {
     graphics_context_set_stroke_color(ctx, GColorDarkGray);
   }
-    
   graphics_draw_line(ctx, GPoint(10, 1), GPoint(10, 22));
   graphics_draw_line(ctx, GPoint(11, 1), GPoint(11, 22));
   graphics_draw_line(ctx, GPoint(11, 1), GPoint(16, 6));
@@ -455,7 +444,7 @@ static void window_load(Window *window) {
   text_layer_set_font(s_time_layer, s_time_font);
   // Improve the layout to be more like a watchface
   text_layer_set_background_color(s_time_layer, GColorClear);
-  text_layer_set_text_color(s_time_layer, GColorChromeYellow);
+  text_layer_set_text_color(s_time_layer, text_color);
   text_layer_set_text_alignment(s_time_layer, GTextAlignmentCenter);
   // Add it as a child layer to the Window's root layer
   layer_add_child(window_layer, text_layer_get_layer(s_time_layer));
@@ -474,7 +463,7 @@ static void window_load(Window *window) {
   text_layer_set_font(s_date_layer, s_date_font);
   // Improve the layout to be more like a watchface
   text_layer_set_background_color(s_date_layer, GColorClear);
-  text_layer_set_text_color(s_date_layer, GColorChromeYellow);
+  text_layer_set_text_color(s_date_layer, text_color);
   text_layer_set_text_alignment(s_date_layer, GTextAlignmentLeft);
   // Add it as a child layer to the Window's root layer
   layer_add_child(window_layer, text_layer_get_layer(s_date_layer));
@@ -485,27 +474,27 @@ static void window_load(Window *window) {
   text_layer_set_font(icon_weather_layer, s_weather_icon_font);
   // Improve the layout to be more like a watchface
   text_layer_set_background_color(icon_weather_layer, GColorClear);
-  text_layer_set_text_color(icon_weather_layer, GColorChromeYellow);
+  text_layer_set_text_color(icon_weather_layer, text_color);
   text_layer_set_text_alignment(icon_weather_layer, GTextAlignmentCenter);
   // Add it as a child layer to the Window's root layer
   layer_add_child(window_layer, text_layer_get_layer(icon_weather_layer));
   
   s_temperature_layer = text_layer_create(GRect(25, 120, 40, 32));
-  text_layer_set_text_color(s_temperature_layer, GColorChromeYellow);
+  text_layer_set_text_color(s_temperature_layer, text_color);
   text_layer_set_background_color(s_temperature_layer, GColorClear);
   text_layer_set_font(s_temperature_layer, s_date_font);
   text_layer_set_text_alignment(s_temperature_layer, GTextAlignmentCenter);
   layer_add_child(window_layer, text_layer_get_layer(s_temperature_layer));
   
   s_city_layer = text_layer_create(GRect(27, 150, bounds.size.w, 32));
-  text_layer_set_text_color(s_city_layer, GColorChromeYellow);
+  text_layer_set_text_color(s_city_layer, text_color);
   text_layer_set_background_color(s_city_layer, GColorClear);
   text_layer_set_font(s_city_layer, fonts_get_system_font(FONT_KEY_GOTHIC_18));
   text_layer_set_text_alignment(s_city_layer, GTextAlignmentLeft);
   layer_add_child(window_layer, text_layer_get_layer(s_city_layer));
 
   s_weatherdescript_layer = text_layer_create(GRect(74, 74, bounds.size.w, 32));
-  text_layer_set_text_color(s_weatherdescript_layer, GColorChromeYellow);
+  text_layer_set_text_color(s_weatherdescript_layer, text_color);
   text_layer_set_background_color(s_weatherdescript_layer, GColorClear);
   text_layer_set_font(s_weatherdescript_layer, fonts_get_system_font(FONT_KEY_GOTHIC_14));
   text_layer_set_text_alignment(s_weatherdescript_layer, GTextAlignmentLeft);
@@ -517,7 +506,7 @@ static void window_load(Window *window) {
   text_layer_set_font(s_batterypercent_layer, fonts_get_system_font(FONT_KEY_GOTHIC_14));
   // Improve the layout to be more like a watchface
   text_layer_set_background_color(s_batterypercent_layer, GColorClear);
-  text_layer_set_text_color(s_batterypercent_layer, GColorChromeYellow);
+  text_layer_set_text_color(s_batterypercent_layer, text_color);
   text_layer_set_text_alignment(s_batterypercent_layer, GTextAlignmentLeft);
   // Add it as a child layer to the Window's root layer
   layer_add_child(window_layer, text_layer_get_layer(s_batterypercent_layer));
@@ -540,7 +529,7 @@ static void window_load(Window *window) {
   text_layer_set_font(s_lifesupport_text_layer, fonts_get_system_font(FONT_KEY_GOTHIC_14));
   // Improve the layout to be more like a watchface
   text_layer_set_background_color(s_lifesupport_text_layer, GColorClear);
-  text_layer_set_text_color(s_lifesupport_text_layer, GColorChromeYellow);
+  text_layer_set_text_color(s_lifesupport_text_layer, text_color);
   text_layer_set_text_alignment(s_lifesupport_text_layer, GTextAlignmentLeft);
   text_layer_set_text(s_lifesupport_text_layer, "Life Support");
   // Add it as a child layer to the Window's root layer
@@ -574,7 +563,7 @@ static void window_load(Window *window) {
   text_layer_set_font(s_parsec_layer, fonts_get_system_font(FONT_KEY_GOTHIC_14_BOLD));
   // Improve the layout to be more like a watchface
   text_layer_set_background_color(s_parsec_layer, GColorClear);
-  text_layer_set_text_color(s_parsec_layer, GColorChromeYellow);
+  text_layer_set_text_color(s_parsec_layer, text_color);
   text_layer_set_text_alignment(s_parsec_layer, GTextAlignmentLeft);
   // Add it as a child layer to the Window's root layer
   text_layer_set_text(s_parsec_layer, "Parsecs");
@@ -586,7 +575,7 @@ static void window_load(Window *window) {
   text_layer_set_font(s_stardate_layer, fonts_get_system_font(FONT_KEY_GOTHIC_14_BOLD));
   // Improve the layout to be more like a watchface
   text_layer_set_background_color(s_stardate_layer, GColorClear);
-  text_layer_set_text_color(s_stardate_layer, GColorChromeYellow);
+  text_layer_set_text_color(s_stardate_layer, text_color);
   text_layer_set_text_alignment(s_stardate_layer, GTextAlignmentLeft);
   // Add it as a child layer to the Window's root layer
   text_layer_set_text(s_stardate_layer, "Stardate");
@@ -653,7 +642,7 @@ static void update_steps(){
   if (prev_s_step_count <=1) {prev_s_step_count = s_step_count;}
   s_step_average = get_health(HealthMetricStepCount, 1);
   s_step_goal = get_health(HealthMetricStepCount, 2);
-
+//  UserStepGoal = 1120;
   if ((prev_s_step_count<UserStepGoal)&&(s_step_count>=UserStepGoal)) {
     static const uint32_t const segments[] = { 200, 200, 50, 50, 50, 50, 100, 200, 400 };
     VibePattern pat = {
@@ -667,6 +656,22 @@ static void update_steps(){
       layer_mark_dirty(s_battery_layer);
       app_timer_register(4*TIMER_INTERVAL_MS, trigger_animation, NULL);
     }
+  }
+}
+
+static void accel_tap_handler(AccelAxisType axis, int32_t direction) {
+  // A tap event occured
+  Watchface_Hibernate=S_FALSE;
+  // Unsubscribe from tap events
+  accel_tap_service_unsubscribe();
+  update_steps();
+  update_time();
+  if (strlen(ReplacementWeatherMessage)==0) {
+    generic_weather_fetch(weather_callback);
+  } else {
+    text_layer_set_text(s_weatherdescript_layer, " ");
+    text_layer_set_text(s_city_layer,ReplacementWeatherMessage);
+    text_layer_set_text(s_temperature_layer,"…");  //place the star trek comm badge
   }
 }
 
@@ -686,36 +691,43 @@ static void tick_handler(struct tm *tick_time, TimeUnits units_changed) {
       update_time();
     }
   
-    snprintf(battery_text, sizeof(battery_text), "S: %d", sleeptime);
-    text_layer_set_text(s_batterypercent_layer, battery_text); 
     //every 30 minutes do the following
     if ((tick_time->tm_min % 30 == 0)&&(tick_time->tm_sec==0)) {  
       if (strlen(ReplacementWeatherMessage)==0) {generic_weather_fetch(weather_callback);}
       //battery numerical display
       if (PowerDisp) {
-        snprintf(battery_text, sizeof(battery_text), "Pwr:%d%%", s_battery_level);}
-      else {
-        snprintf(battery_text, sizeof(battery_text), " ");}
-      text_layer_set_text(s_batterypercent_layer, battery_text); 
+        snprintf(battery_text, sizeof(battery_text), "Pwr:%d%%", s_battery_level);
+        text_layer_set_text(s_batterypercent_layer, battery_text); 
+      }
     }
-  
-    if (tick_time->tm_min % 10 == 0) {
+    if ((tick_time->tm_min % 10 == 0)||((tick_time->tm_hour==UserManualSleepStart)&&tick_time->tm_min==1)) {
       //every 10 minutes check if the user is sleeping
-      if (is_user_sleeping()) {
+      if ((is_user_sleeping())||(tick_time->tm_hour==UserManualSleepStart)) {
         Watchface_Hibernate = S_TRUE;
-        sleeptime++;
+        text_layer_set_text(s_city_layer,"Watch is Sleeping");
+        // Subscribe to tap events
+        accel_tap_service_subscribe(accel_tap_handler);
       }
     }
   } else {
       if ((tick_time->tm_min % 10 == 0)&&(tick_time->tm_sec==0)) {
-        if (!is_user_sleeping()) {
-          Watchface_Hibernate=S_FALSE;
-          update_steps();
-          update_time();
-          if (strlen(ReplacementWeatherMessage)==0) {generic_weather_fetch(weather_callback);}
+        if (!is_user_sleeping()) {  //if we detect the user is sleeping always stay in hibernation
+          if ((UserManualSleepStart==24)||(tick_time->tm_hour==((UserManualSleepStart+6)%24))) { //if the user is not sleeping, and they disabled the manual timer or the current hour is 6 hours or after the manual sleep time
+            Watchface_Hibernate=S_FALSE;
+            // Unsubscribe from tap events
+            accel_tap_service_unsubscribe();
+            update_steps();
+            update_time();
+            if (strlen(ReplacementWeatherMessage)==0) {
+              generic_weather_fetch(weather_callback);
+            } else {
+              text_layer_set_text(s_weatherdescript_layer, " ");
+              text_layer_set_text(s_city_layer,ReplacementWeatherMessage);
+              text_layer_set_text(s_temperature_layer,"…");  //place the star trek comm badge
+            }
+          }           
         }           
       }
-    sleeptime++;
   }
 }
 
@@ -725,15 +737,25 @@ static void inbox_received_callback(DictionaryIterator *iterator, void *context)
 	if(data)
 	{
   	//APP_LOG(APP_LOG_LEVEL_DEBUG, "Ready Recieved");
-    //If we just recieved a ready then we are launching the watchface.  init already called update_steps and update_time, we we only need to refresh the weather
+    //If we just recieved a ready then we are launching the watchface.
+      // Make sure the time and steps are displayed from the start
+	  update_steps();
+    update_time();
+
+    //initialize battery numerical display
+    if (PowerDisp) {
+      snprintf(battery_text, sizeof(battery_text), "Pwr:%d%%", s_battery_level);
+        text_layer_set_text(s_batterypercent_layer, battery_text);}
+  
     if (strlen(ReplacementWeatherMessage)==0) {
       if (WeatherSetupStatusKey&&WeatherSetupStatusProvider) {
-//        APP_LOG(APP_LOG_LEVEL_DEBUG, "Calling Weather");
         generic_weather_fetch(weather_callback);
-      }
-      else {
+      } else {
         text_layer_set_text(s_city_layer,"Please save settings");
       }
+    } else {
+      text_layer_set_text(s_city_layer,ReplacementWeatherMessage);
+      text_layer_set_text(s_temperature_layer,"…");  //place the star trek comm badge
     }
 	}
 	
@@ -753,6 +775,12 @@ static void inbox_received_callback(DictionaryIterator *iterator, void *context)
 	if(data)
 	{
 		UserStepGoal = data->value->int32;
+	}
+
+	data = dict_find(iterator, MESSAGE_KEY_MANUALSLEEPSTART);
+	if(data)
+	{
+		UserManualSleepStart = data->value->int32;
 	}
 
 	data = dict_find(iterator, MESSAGE_KEY_WEATHERREPLACEMENT);
@@ -783,8 +811,11 @@ static void inbox_received_callback(DictionaryIterator *iterator, void *context)
 	if(data)
 	{
 		UKDateFormat = data->value->int32 == 1;
-    if (UKDateFormat)
-      {snprintf(DateFormatter,sizeof(DateFormatter),"%%d%%m%%y.");}
+    if (UKDateFormat) {
+      snprintf(DateFormatter,sizeof(DateFormatter),"%%d%%m%%y.");
+    } else {
+      snprintf(DateFormatter,sizeof(DateFormatter),"%%m%%d%%y.");
+    }
   }
 
 	data = dict_find(iterator, MESSAGE_KEY_ANIMATIONENABLED);
@@ -804,6 +835,24 @@ static void inbox_received_callback(DictionaryIterator *iterator, void *context)
 	{
 		WeekdayNameDisp = data->value->int32 == 1;
 	}
+  
+	data = dict_find(iterator, MESSAGE_KEY_TEXTCOLOR);
+  if(data) {
+    if (data->value->int32!=text_color_value) {
+      text_color_value = data->value->int32;
+      text_color = GColorFromHEX(text_color_value);
+      text_layer_set_text_color(s_time_layer, text_color);
+      text_layer_set_text_color(s_date_layer, text_color);
+      text_layer_set_text_color(icon_weather_layer, text_color);
+      text_layer_set_text_color(s_temperature_layer, text_color);
+      text_layer_set_text_color(s_city_layer, text_color);
+      text_layer_set_text_color(s_weatherdescript_layer, text_color);
+      text_layer_set_text_color(s_batterypercent_layer, text_color);
+      text_layer_set_text_color(s_lifesupport_text_layer, text_color);
+      text_layer_set_text_color(s_parsec_layer, text_color);
+      text_layer_set_text_color(s_stardate_layer, text_color);
+    }
+  }  
 
 	data = dict_find(iterator, MESSAGE_KEY_POWERDISPLAY);
 	if(data)
@@ -852,9 +901,9 @@ static void inbox_received_callback(DictionaryIterator *iterator, void *context)
     }
     else {
       text_layer_set_text(s_city_layer,ReplacementWeatherMessage);
-      text_layer_set_text(s_temperature_layer,"…");
+      text_layer_set_text(s_temperature_layer,"…"); //this is the voyager com badge icon for the custom font
       text_layer_set_text(s_weatherdescript_layer," ");
-      text_layer_set_text(icon_weather_layer,"M");  //this is the voyager com badge icon for the custom font
+      text_layer_set_text(icon_weather_layer,"M");  //blank character
     }
   }
 }
@@ -921,6 +970,9 @@ static void window_unload(Window *window) {
 }
 
 static void init() {
+	//I shouldn't be doing this here and it should be in read_persist, but the function takes a while to complete and I need this setting for window_load
+  text_color = persist_exists(MESSAGE_KEY_TEXTCOLOR)? GColorFromHEX(persist_read_int(MESSAGE_KEY_TEXTCOLOR)) : GColorChromeYellow;
+
   s_main_window = window_create();
   window_set_background_color(s_main_window, GColorBlack);
   window_set_window_handlers(s_main_window, (WindowHandlers) {
@@ -929,8 +981,9 @@ static void init() {
   });
   window_stack_push(s_main_window, true);
 	
-	read_persist();
-  
+//read in stored settings from the pebble VM memory
+  read_persist();
+
   // Register with TickTimerService
   if (DisplaySeconds) {
     events_tick_timer_service_subscribe(SECOND_UNIT, tick_handler);
@@ -946,22 +999,6 @@ static void init() {
   // Register for Bluetooth connection updates
   events_connection_service_subscribe((ConnectionHandlers) {.pebble_app_connection_handler = bluetooth_callback});
 
-  // Make sure the time and steps are displayed from the start
-	update_steps();
-  update_time();
-
-  //initialize battery numerical display
-  if (PowerDisp) {
-    snprintf(battery_text, sizeof(battery_text), "Pwr:%d%%", s_battery_level);
-      text_layer_set_text(s_batterypercent_layer, battery_text);}
-  else {
-    snprintf(battery_text, sizeof(battery_text), " ");}
-  
-  if (strlen(ReplacementWeatherMessage)>0) {
-    text_layer_set_text(s_city_layer,ReplacementWeatherMessage);
-    text_layer_set_text(s_temperature_layer,"…");
-  }
-  
   // Generic Weather setup and display
   generic_weather_init();
   generic_weather_set_api_key(api_key);

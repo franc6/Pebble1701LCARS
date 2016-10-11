@@ -15,6 +15,13 @@ module.exports = [
         "defaultValue": "Watchface Settings"
       },
       {
+      "type": "color",
+      "messageKey": "TEXTCOLOR",
+      "defaultValue": "FFAA00",
+      "label": "Press the color dot to the right to select a color used to display text and the weather icon",
+      "sunlight": true,
+      },
+      {
         "type": "toggle",
         "messageKey": "POWERDISPLAY",
         "label": "Show percentage of battery remaining above the engines?",
@@ -70,6 +77,16 @@ module.exports = [
         "min": 5000,
         "max": 20000,
         "step": 500
+      },
+      {
+        "type": "slider",
+        "messageKey": "MANUALSLEEPSTART",
+        "defaultValue": 24,
+        "label": "Manually set the watchface to go to sleep",
+        "description": "This setting is in military time and will stop the watchface refreshing for 6 hours to save power, flick your wrist to bring the watchface out of sleep mode.  Please read the watchface website when using this setting... set to 24 to disable.  Please note when using this setting it will ignore an awake event for 6 hours from the time specified",
+        "min": 0,
+        "max": 24,
+        "step": 1
       },
       {
         "type": "toggle",
