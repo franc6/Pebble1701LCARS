@@ -152,9 +152,9 @@ static void lifesupport_update_proc(Layer *layer, GContext *ctx) {
   GRect bounds = layer_get_bounds(layer);
 
   // Find the width of the bar which is up to 57 pixels wide
-  int goalwidth = (int)(float)(((float)s_step_count / s_step_goal) * bounds.size.w);
+  int goalwidth = ((s_step_count * bounds.size.w) / s_step_goal);
   if (goalwidth > bounds.size.w){goalwidth = bounds.size.w;}
-  int avgwidth = (int)(float)(((float)s_step_count / s_step_average) * bounds.size.w);
+  int avgwidth = ((s_step_count * bounds.size.w) / s_step_average);
   if (avgwidth > bounds.size.w){avgwidth = bounds.size.w;}
 
   // Draw the background
@@ -172,6 +172,7 @@ static void lifesupport_update_proc(Layer *layer, GContext *ctx) {
 static void lcars_block(Layer *layer, GContext *ctx) {
   // LCARS COLORS GColorVividViolet GColorIcterine GColorLavenderIndigo GColorPictonBlue GColorRajah GColorBlue GColorChromeYellow GColorSunsetOrange
   //              dark purple       light yellow    light purple        light blue        tan
+  GRect bounds = layer_get_bounds(layer);
   bool connected = connection_service_peek_pebble_app_connection();
   graphics_context_set_fill_color(ctx, GColorLavenderIndigo);
   //lower elbo
@@ -325,7 +326,7 @@ static void battery_update_proc(Layer *layer, GContext *ctx) {
   GRect bounds = layer_get_bounds(layer);
 
   // Find the width of the bar
-  int width = (int)(float)(((float)s_battery_level / 100.0F) * bounds.size.w);
+  int width = ((s_battery_level * bounds.size.w) / 100);
 
   if (s_battery_level>0) {
     // Draw the background
@@ -423,7 +424,7 @@ static void window_load(Window *window) {
   Layer *window_layer = window_get_root_layer(window);
   GRect bounds = layer_get_bounds(window_layer);
   // Create lcars background Layer
-  s_lcars_layer = layer_create(GRect(0,0,144,177));
+  s_lcars_layer = layer_create(bounds);
   layer_set_update_proc(s_lcars_layer, lcars_block);
   // Add to Window
   layer_add_child(window_layer, s_lcars_layer);
@@ -598,6 +599,9 @@ static void update_time() {
   strftime(s_buffer, sizeof(s_buffer), clock_is_24h_style() ?
                                           "%H%M" : "%I%M", tick_time);
 
+  // Display this time on the TextLayer
+  text_layer_set_text(s_time_layer, s_buffer);
+  
   if (WeekdayNameDisp) {
     static char s_weekdayname[4];
     static char s_weekdayname1[3];
@@ -616,9 +620,6 @@ static void update_time() {
     snprintf(s_weeknum1,sizeof(s_weeknum1),"#%s",s_weeknum);
     text_layer_set_text(s_weeknum_layer, s_weeknum1);}
 
-  // Display this time on the TextLayer
-  text_layer_set_text(s_time_layer, s_buffer);
-  
   //char string to hold the date and step for the stardate value
   static char date_buffer[16];
   static char date_step_buffer[16];
@@ -639,9 +640,16 @@ static void update_time() {
 static void update_steps(){
   prev_s_step_count = s_step_count;
   s_step_count = get_health(HealthMetricStepCount, 0);
-  if (prev_s_step_count <=1) {prev_s_step_count = s_step_count;}
+  if (prev_s_step_count <2) {prev_s_step_count = s_step_count;}
   s_step_average = get_health(HealthMetricStepCount, 1);
   s_step_goal = get_health(HealthMetricStepCount, 2);
+  if (s_step_goal==0) {//this comes up when the watch has less than a week of health data
+    time_t temp = time(NULL);
+    struct tm *tick_time = localtime(&temp);
+    s_step_goal = UserStepGoal;  //just use the user's step goal
+    s_step_average=(((tick_time->tm_hour+1)*s_step_goal)/24);  //calculate average by the time of day
+  }
+
 //  UserStepGoal = 1120;
   if ((prev_s_step_count<UserStepGoal)&&(s_step_count>=UserStepGoal)) {
     static const uint32_t const segments[] = { 200, 200, 50, 50, 50, 50, 100, 200, 400 };
@@ -738,15 +746,7 @@ static void inbox_received_callback(DictionaryIterator *iterator, void *context)
 	{
   	//APP_LOG(APP_LOG_LEVEL_DEBUG, "Ready Recieved");
     //If we just recieved a ready then we are launching the watchface.
-      // Make sure the time and steps are displayed from the start
-	  update_steps();
-    update_time();
 
-    //initialize battery numerical display
-    if (PowerDisp) {
-      snprintf(battery_text, sizeof(battery_text), "Pwr:%d%%", s_battery_level);
-        text_layer_set_text(s_batterypercent_layer, battery_text);}
-  
     if (strlen(ReplacementWeatherMessage)==0) {
       if (WeatherSetupStatusKey&&WeatherSetupStatusProvider) {
         generic_weather_fetch(weather_callback);
@@ -990,12 +990,21 @@ static void init() {
   } else {
     events_tick_timer_service_subscribe(MINUTE_UNIT, tick_handler);
   }
-	
+  
+  // Make sure the time and steps are displayed from the start
+	update_steps();
+  update_time();
+
   // Register for battery level updates
   events_battery_state_service_subscribe(battery_callback);
   // Ensure battery level is displayed from the start
   battery_callback(battery_state_service_peek());
     
+  //initialize battery numerical display
+  if (PowerDisp) {
+    snprintf(battery_text, sizeof(battery_text), "Pwr:%d%%", s_battery_level);
+    text_layer_set_text(s_batterypercent_layer, battery_text);}
+  	
   // Register for Bluetooth connection updates
   events_connection_service_subscribe((ConnectionHandlers) {.pebble_app_connection_handler = bluetooth_callback});
 
