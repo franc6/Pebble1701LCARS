@@ -40,7 +40,8 @@
                     "file": "fonts/LCARSGTJ3_58.ttf",
                     "name": "LCARS_58",
                     "targetPlatforms": [
-                        "basalt"
+                        "basalt",
+                        "emery"
                     ],
                     "type": "font"
                 },
@@ -48,7 +49,8 @@
                     "file": "fonts/weather.ttf",
                     "name": "WEATHERICON_38",
                     "targetPlatforms": [
-                        "basalt"
+                        "basalt",
+                        "emery"
                     ],
                     "type": "font"
                 },
@@ -57,7 +59,8 @@
                     "file": "fonts/LCARSGTJ3_32.ttf",
                     "name": "LCARS_32",
                     "targetPlatforms": [
-                        "basalt"
+                        "basalt",
+                        "emery"
                     ],
                     "type": "font"
                 },
@@ -65,7 +68,8 @@
                     "file": "images/enterprise.png",
                     "name": "ENTERPRISE",
                     "targetPlatforms": [
-                        "basalt"
+                        "basalt",
+                        "emery"
                     ],
                     "type": "bitmap"
                 },
@@ -74,7 +78,8 @@
                     "menuIcon": true,
                     "name": "TILE",
                     "targetPlatforms": [
-                        "basalt"
+                        "basalt",
+                        "emery"
                     ],
                     "type": "bitmap"
                 }
@@ -82,7 +87,8 @@
         },
         "sdkVersion": "3",
         "targetPlatforms": [
-            "basalt"
+            "basalt",
+            "emery"
         ],
         "uuid": "da71a728-bf9d-4ecc-8d31-0d80775e65ae",
         "watchapp": {
