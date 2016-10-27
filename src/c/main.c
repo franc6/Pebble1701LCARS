@@ -168,7 +168,7 @@ static void lifesupport_update_proc(Layer *layer, GContext *ctx) {
   graphics_context_set_fill_color(ctx, GColorBlueMoon);
   graphics_fill_rect(ctx, GRect(0, 0, goalwidth, bounds.size.h), 0, GCornerNone);
   graphics_context_set_fill_color(ctx, GColorMidnightGreen);
-  graphics_fill_rect(ctx, GRect(0, 0, avgwidth, bounds.size.h-7), 0, GCornerNone);
+  graphics_fill_rect(ctx, GRect(0, 0, avgwidth, bounds.size.h/2), 0, GCornerNone);
 }
 
 static void lcars_block(Layer *layer, GContext *ctx) {
@@ -456,7 +456,7 @@ static void window_load(Window *window) {
   // Add to Window
   layer_add_child(window_layer, s_lcars_layer);
 
-  s_bt_layer = layer_create(GRect(3,144,21,23));
+  s_bt_layer = layer_create(GRect((bounds.size.w/14)-7,bounds.size.h-(bounds.size.h/12+10),21,23));
 //  s_bt_layer = layer_create(GRect(3,144,21,23));
   layer_set_update_proc(s_bt_layer, bt_update_proc);
   layer_add_child(window_layer, s_bt_layer);
@@ -549,7 +549,7 @@ static void window_load(Window *window) {
 
   
    // Create the TextLayer with specific bounds
-  s_batterypercent_layer = text_layer_create(GRect(((bounds.size.w*13)/28)-64, upperacrossline+4, bounds.size.w/2, 15));
+  s_batterypercent_layer = text_layer_create(GRect(((bounds.size.w*13)/28)-64, upperacrossline+(4*bounds.size.h/100), bounds.size.w/2, 15));
   //s_batterypercent_layer = text_layer_create(GRect(2, 54, bounds.size.w, 15));
   // Apply to TextLayer
   text_layer_set_font(s_batterypercent_layer, fonts_get_system_font(FONT_KEY_GOTHIC_14));
@@ -575,7 +575,7 @@ static void window_load(Window *window) {
   layer_add_child(window_get_root_layer(window), s_lifesupport_layer);
 
   // Create the TextLayer with specific bounds
-  s_lifesupport_text_layer = text_layer_create(GRect(bounds.size.w-76, ((bounds.size.h*37)/60)+37, 75, 19));
+  s_lifesupport_text_layer = text_layer_create(GRect(bounds.size.w-76, ((bounds.size.h*7)/12)+42, 75, 19));
   //s_lifesupport_text_layer = text_layer_create(GRect(75, 140, 92, 15));
   // Apply to TextLayer
   if (bounds.size.w==144) {
@@ -608,7 +608,7 @@ static void window_load(Window *window) {
   layer_add_child(window_layer, text_layer_get_layer(s_weekname_layer));
 
   // Create the TextLayer with specific bounds
-  s_weeknum_layer = text_layer_create(GRect(3,((bounds.size.h*3)/20)-9,bounds.size.w/6-3,19));
+  s_weeknum_layer = text_layer_create(GRect(3,((bounds.size.h*7)/60)-3,bounds.size.w/6-3,19));
   //s_weeknum_layer = text_layer_create(GRect(3,16,21,15));
   // Apply to TextLayer
   if (bounds.size.w==144) {
@@ -624,7 +624,7 @@ static void window_load(Window *window) {
   layer_add_child(window_layer, text_layer_get_layer(s_weeknum_layer));
 
   // Create the TextLayer with specific bounds
-  s_stardate_layer = text_layer_create(GRect(textleft, 00, bounds.size.w-textleft, 15));
+  s_stardate_layer = text_layer_create(GRect(textleft, 00, bounds.size.w-textleft, 19));
   //s_stardate_layer = text_layer_create(GRect(textleft, 00, bounds.size.w, 15));
   // Apply to TextLayer
   if (bounds.size.w==144) {
@@ -646,6 +646,10 @@ static void window_load(Window *window) {
   layer_set_update_proc(s_warp_layer, warp_update_proc);
   // Add to Window
   layer_add_child(window_get_root_layer(window), s_warp_layer);
+  
+//  text_layer_set_text(icon_weather_layer, "D");
+//  text_layer_set_text(s_temperature_layer,"68");
+//  text_layer_set_text(s_weatherdescript_layer,"Partly Cloudy");
 }
 
 static void update_time() {
@@ -736,21 +740,15 @@ static void accel_tap_handler(AccelAxisType axis, int32_t direction) {
   if (strlen(ReplacementWeatherMessage)==0) {
     generic_weather_fetch(weather_callback);
   } else {
-    text_layer_set_text(s_weatherdescript_layer, " ");
+//    text_layer_set_text(s_weatherdescript_layer, " ");
     text_layer_set_text(s_city_layer,ReplacementWeatherMessage);
     text_layer_set_text(s_temperature_layer,"…");  //place the star trek comm badge
   }
 }
 
-bool is_user_sleeping() {
-  static bool is_sleeping=S_FALSE;
-  HealthActivityMask activities = health_service_peek_current_activities();
-  is_sleeping = activities & HealthActivitySleep || activities & HealthActivityRestfulSleep;
-  return is_sleeping;
-}
-
 static void tick_handler(struct tm *tick_time, TimeUnits units_changed) {
-  if (tick_time->tm_sec==0) {
+if (!Watchface_Hibernate) {
+    if (tick_time->tm_sec==0) {
     update_steps();
     update_time();
   } else if (DisplaySeconds) {
@@ -766,12 +764,7 @@ static void tick_handler(struct tm *tick_time, TimeUnits units_changed) {
       text_layer_set_text(s_batterypercent_layer, battery_text); 
     }
   }
-}
-
-/*        text_layer_set_text(s_city_layer,"Watch is Sleeping");
-        accel_tap_service_subscribe(accel_tap_handler);
-            accel_tap_service_unsubscribe();
-*/
+}}
 
 static void prv_health_event_handler(HealthEventType event, void *context) {
     if (event == HealthEventSignificantUpdate) {
@@ -779,22 +772,31 @@ static void prv_health_event_handler(HealthEventType event, void *context) {
     } else if (event == HealthEventSleepUpdate) {
         HealthActivityMask mask = health_service_peek_current_activities();
         bool sleeping = (mask & HealthActivitySleep) || (mask & HealthActivityRestfulSleep);
-        if (!sleeping && s_tick_timer_event_handle) {
+        if (sleeping && !Watchface_Hibernate){// && s_tick_timer_event_handle) {
           text_layer_set_text(s_city_layer,"Watch is Sleeping");
-          events_tick_timer_service_unsubscribe(s_tick_timer_event_handle);
+          events_tick_timer_service_unsubscribe(tick_handler);
           //s_tick_timer_event_handle = NULL;  
-        } else if (!sleeping && !s_tick_timer_event_handle) {
+          Watchface_Hibernate = S_TRUE;
+          static char s_buffer[8];
+          time_t temp = time(NULL);
+          struct tm *tick_time = localtime(&temp);
+          strftime(s_buffer, sizeof(s_buffer), "%H%M", tick_time);
+          text_layer_set_text(s_weatherdescript_layer, s_buffer);
+          accel_tap_service_subscribe(accel_tap_handler);
+        } else if (!sleeping && Watchface_Hibernate){// && !s_tick_timer_event_handle) {
           if (DisplaySeconds) {
             s_tick_timer_event_handle = events_tick_timer_service_subscribe(SECOND_UNIT, tick_handler);
           } else {
             s_tick_timer_event_handle = events_tick_timer_service_subscribe(MINUTE_UNIT, tick_handler);
           }
+          accel_tap_service_unsubscribe();
+          Watchface_Hibernate = S_FALSE;
           update_steps();
           update_time();
           if (strlen(ReplacementWeatherMessage)==0) {
             generic_weather_fetch(weather_callback);
           } else {
-            text_layer_set_text(s_weatherdescript_layer, " ");
+//            text_layer_set_text(s_weatherdescript_layer, " ");
             text_layer_set_text(s_city_layer,ReplacementWeatherMessage);
             text_layer_set_text(s_temperature_layer,"…");  //place the star trek comm badge
           }
@@ -969,10 +971,10 @@ static void inbox_received_callback(DictionaryIterator *iterator, void *context)
     else {
       text_layer_set_text(s_city_layer,ReplacementWeatherMessage);
       text_layer_set_text(s_temperature_layer,"…"); //this is the voyager com badge icon for the custom font
-      text_layer_set_text(s_weatherdescript_layer," ");
+//      text_layer_set_text(s_weatherdescript_layer," ");
       text_layer_set_text(icon_weather_layer,"M");  //blank character
     }
-prv_health_event_handler(HealthEventSleepUpdate, NULL);
+//prv_health_event_handler(HealthEventSleepUpdate, NULL);
   }
 }
 
