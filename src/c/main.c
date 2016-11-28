@@ -16,9 +16,9 @@ static bool F_Tick = S_TRUE, PowerDisp = S_TRUE, UKDateFormat = S_FALSE, Weekday
 static int warpsequence = 0, text_color_value =0, UserManualSleepStart=24;
 static int loweracrossline = 90, upperacrossline = 50, textleft = 25, watchwidth=168, slept=0;
 #define TIMER_INTERVAL_MS 500
-#define TIMER_IDLE_INTERVAL_MS 30000
-static PropertyAnimation *image_property_animation;
-static bool WeatherSetupStatusKey = S_FALSE, WeatherSetupStatusProvider = S_FALSE;
+#define TIMER_IDLE_INTERVAL_MS 1800000
+static PropertyAnimation *image_property_animation; //1800000
+static bool WeatherSetupStatusKey = S_FALSE, WeatherSetupStatusProvider = S_FALSE, HibernateEnable = S_TRUE, SleepEnable = S_TRUE;
 GColor text_color;
 static EventHandle s_health_event_handle, s_tick_timer_event_handle, s_idle_timer_event_handle;
 
@@ -29,9 +29,6 @@ static void read_persist()
 	}
 	if(persist_exists(MESSAGE_KEY_STEPGOAL)) 	{
 		UserStepGoal = persist_read_int(MESSAGE_KEY_STEPGOAL);
-	}
-	if(persist_exists(MESSAGE_KEY_MANUALSLEEPSTART)) 	{
-		UserManualSleepStart = persist_read_int(MESSAGE_KEY_MANUALSLEEPSTART);
 	}
 	if(persist_exists(MESSAGE_KEY_WEATHERREPLACEMENT)) 	{
 		persist_read_string(MESSAGE_KEY_WEATHERREPLACEMENT, ReplacementWeatherMessage, sizeof(ReplacementWeatherMessage));
@@ -59,6 +56,12 @@ static void read_persist()
 	if(persist_exists(MESSAGE_KEY_ANIMATIONENABLED)) {
 		AnimationEnabled = persist_read_bool(MESSAGE_KEY_ANIMATIONENABLED);
 	}
+	if(persist_exists(MESSAGE_KEY_SLEEPENABLED)) {
+		SleepEnable = persist_read_bool(MESSAGE_KEY_SLEEPENABLED);
+	}
+	if(persist_exists(MESSAGE_KEY_HIBERNATEENABLED)) {
+		HibernateEnable = persist_read_bool(MESSAGE_KEY_HIBERNATEENABLED);
+	}
 	if(persist_exists(MESSAGE_KEY_WeatherProvide)) {
 		persist_read_string(MESSAGE_KEY_WeatherProvide, userweatherprovider, sizeof(userweatherprovider));
 	}
@@ -70,7 +73,6 @@ static void read_persist()
 static void store_persist()
 {
   persist_write_int(MESSAGE_KEY_STEPGOAL, UserStepGoal);
-  persist_write_int(MESSAGE_KEY_MANUALSLEEPSTART, UserManualSleepStart);
 	persist_write_string(MESSAGE_KEY_APIKEY, api_key);
 	persist_write_string(MESSAGE_KEY_WEATHERREPLACEMENT, ReplacementWeatherMessage);
   persist_write_bool(MESSAGE_KEY_FTICK, F_Tick);
@@ -80,6 +82,8 @@ static void store_persist()
   persist_write_bool(MESSAGE_KEY_WEEKDAYNAME, WeekdayNameDisp);
   persist_write_bool(MESSAGE_KEY_POWERDISPLAY, PowerDisp);
   persist_write_bool(MESSAGE_KEY_ANIMATIONENABLED, AnimationEnabled);
+  persist_write_bool(MESSAGE_KEY_SLEEPENABLED, SleepEnable);
+  persist_write_bool(MESSAGE_KEY_HIBERNATEENABLED, HibernateEnable);
 	persist_write_string(MESSAGE_KEY_WeatherProvide, userweatherprovider);
 	persist_write_string(MESSAGE_KEY_WEEKNUMFORMAT, WeekNumDisp);
   if (text_color_value >0) { persist_write_int(MESSAGE_KEY_TEXTCOLOR, text_color_value); }
@@ -519,6 +523,7 @@ static void window_load(Window *window) {
   text_layer_set_background_color(s_temperature_layer, GColorClear);
   text_layer_set_font(s_temperature_layer, s_date_font);
   text_layer_set_text_alignment(s_temperature_layer, GTextAlignmentCenter);
+  text_layer_set_text(s_temperature_layer,"…"); //this is the voyager com badge icon for the custom font
   layer_add_child(window_layer, text_layer_get_layer(s_temperature_layer));
   
   s_city_layer = text_layer_create(GRect(textleft, 2*(bounds.size.h/6+2)+loweracrossline, bounds.size.w-textleft, 32));
@@ -531,6 +536,7 @@ static void window_load(Window *window) {
     text_layer_set_font(s_city_layer, fonts_get_system_font(FONT_KEY_GOTHIC_24));
   }
   text_layer_set_text_alignment(s_city_layer, GTextAlignmentLeft);
+  text_layer_set_text(s_city_layer,"LCARS1701D");
   layer_add_child(window_layer, text_layer_get_layer(s_city_layer));
 
   s_weatherdescript_layer = text_layer_create(GRect(bounds.size.w/2+2, (upperacrossline+loweracrossline)/2+3, bounds.size.w/2-2, 32));
@@ -544,12 +550,8 @@ static void window_load(Window *window) {
   }
   text_layer_set_text_alignment(s_weatherdescript_layer, GTextAlignmentLeft);
   layer_add_child(window_layer, text_layer_get_layer(s_weatherdescript_layer));
-  //static char s_buffer[8];
-  //snprintf(s_buffer, sizeof(s_buffer),"%d",textleft);
-  //text_layer_set_text(s_weatherdescript_layer, s_buffer);
-
   
-   // Create the TextLayer with specific bounds
+  // Create the TextLayer with specific bounds
   s_batterypercent_layer = text_layer_create(GRect(((bounds.size.w*13)/28)-64, upperacrossline+(4*bounds.size.h/100), bounds.size.w/2, 15));
   //s_batterypercent_layer = text_layer_create(GRect(2, 54, bounds.size.w, 15));
   // Apply to TextLayer
@@ -707,7 +709,7 @@ static void update_steps(){
   if (prev_s_step_count <2) {prev_s_step_count = s_step_count;}
   s_step_average = get_health(HealthMetricStepCount, 1);
   s_step_goal = get_health(HealthMetricStepCount, 2);
-  if (s_step_goal==0) {//this comes up when the watch has less than a week of health data
+  if ((s_step_goal==0) ||(s_step_average==0)) {//this comes up when the watch has less than a week of health data
     time_t temp = time(NULL);
     struct tm *tick_time = localtime(&temp);
     s_step_goal = UserStepGoal;  //just use the user's step goal
@@ -731,41 +733,20 @@ static void update_steps(){
   }
 }
 
-/*static void watchface_refresh(){
-  Watchface_Hibernate=S_FALSE;
-  // Unsubscribe from tap events
-  accel_tap_service_unsubscribe();
+static void watchface_refresh(){
   update_steps();
   update_time();
   if (strlen(ReplacementWeatherMessage)==0) {
     generic_weather_fetch(weather_callback);
   } else {
-//    text_layer_set_text(s_weatherdescript_layer, " ");
-    text_layer_set_text(s_city_layer,ReplacementWeatherMessage);
-    text_layer_set_text(s_temperature_layer,"…");  //place the star trek comm badge
-  }
-}*/
-
-static void accel_tap_handler(AccelAxisType axis, int32_t direction) {
-  // A tap event occured
-  Watchface_Hibernate=S_FALSE;
-  // Unsubscribe from tap events
-  accel_tap_service_unsubscribe();
-  update_steps();
-  update_time();
-  if (strlen(ReplacementWeatherMessage)==0) {
-    generic_weather_fetch(weather_callback);
-  } else {
-//    text_layer_set_text(s_weatherdescript_layer, " ");
+    text_layer_set_text(s_weatherdescript_layer, " ");
     text_layer_set_text(s_city_layer,ReplacementWeatherMessage);
     text_layer_set_text(s_temperature_layer,"…");  //place the star trek comm badge
   }
 }
 
 static void tick_handler(struct tm *tick_time, TimeUnits units_changed) {
-  if (tick_time->tm_sec==0) {
-    update_steps();
-  }
+  if (tick_time->tm_sec==0) { update_steps(); }
   update_time();
   
   //every 30 minutes do the following
@@ -778,122 +759,84 @@ static void tick_handler(struct tm *tick_time, TimeUnits units_changed) {
     }
   }
   
-//  if ((tick_time->tm_hour>14)||(tick_time->tm_hour<8)) {
-    slept=slept+1; 
+/*  if ((tick_time->tm_hour>21)||(tick_time->tm_hour<7)) {slept++;}
   static char s_buffer[8];
   snprintf(s_buffer,sizeof(s_buffer),"%d",slept);
-  text_layer_set_text(s_weatherdescript_layer, s_buffer);
-  
+  text_layer_set_text(s_weatherdescript_layer, s_buffer);*/
 }
 
-/*static void accel_tap_handler(AccelAxisType axis, int32_t direction) {
+static void accel_tap_handler(AccelAxisType axis, int32_t direction) {
   // A tap event occured
+  Watchface_Hibernate=S_FALSE;
+  // Unsubscribe from tap events
+  accel_tap_service_unsubscribe();
   watchface_refresh();
-  if (DisplaySeconds) {
-    s_tick_timer_event_handle = events_tick_timer_service_subscribe(SECOND_UNIT, tick_handler);
-  } else {
-    s_tick_timer_event_handle = events_tick_timer_service_subscribe(MINUTE_UNIT, tick_handler);
+  if (s_tick_timer_event_handle==NULL) {
+    if (DisplaySeconds) {
+      s_tick_timer_event_handle = events_tick_timer_service_subscribe(SECOND_UNIT, tick_handler);
+    } else {
+      s_tick_timer_event_handle = events_tick_timer_service_subscribe(MINUTE_UNIT, tick_handler);
+    }
   }
-*/
-//  if (s_idle_timer_event_handle) {
-//    app_timer_reschedule(s_idle_timer_event_handle, TIMER_IDLE_INTERVAL_MS);
-//  } /*else {
-//    s_idle_timer_event_handle = app_timer_register(TIMER_IDLE_INTERVAL_MS, idle_scheduler, NULL);
-//  }*/
-//}
+  if (HibernateEnable) {app_timer_reschedule(s_idle_timer_event_handle,TIMER_IDLE_INTERVAL_MS);}
+}
 
 bool is_user_sleeping() {
   static bool is_sleeping=S_FALSE;
-  HealthActivityMask activities = health_service_peek_current_activities();
-  is_sleeping = activities & HealthActivitySleep || activities & HealthActivityRestfulSleep;
+  if (SleepEnable) {
+    HealthActivityMask activities = health_service_peek_current_activities();
+    is_sleeping = activities & HealthActivitySleep || activities & HealthActivityRestfulSleep;
+  }
   return is_sleeping;
-//  return F_Tick;
+/*  if (s_tick_timer_event_handle!=NULL) {
+    return S_TRUE;
+  } else {
+    return S_FALSE;
+  }*/
 }
 
 static void prv_health_event_handler(HealthEventType event, void *context) {
-    if (event == HealthEventSignificantUpdate) {
+    switch(event) {
+    case HealthEventSignificantUpdate: 
+      if (!Watchface_Hibernate) {
+        if (HibernateEnable) {app_timer_reschedule(s_idle_timer_event_handle,TIMER_IDLE_INTERVAL_MS);}
         prv_health_event_handler(HealthEventSleepUpdate, context);
-    } else if (event == HealthEventSleepUpdate) {
-//        bool sleeping = is_user_sleeping();
-        if ((slept>0) && !Watchface_Hibernate){// && s_tick_timer_event_handle) {
+      }
+      break;
+    case HealthEventSleepUpdate: {
+        bool sleeping = is_user_sleeping();
+        if (sleeping && ((s_tick_timer_event_handle!=NULL)||Watchface_Hibernate)) {
+          if (HibernateEnable) {app_timer_reschedule(s_idle_timer_event_handle,TIMER_IDLE_INTERVAL_MS*16);}
           text_layer_set_text(s_city_layer,"Watch is Sleeping");
-          events_tick_timer_service_unsubscribe(s_tick_timer_event_handle);
-          s_tick_timer_event_handle = NULL;
-          Watchface_Hibernate = S_TRUE;
-          static char s_buffer[8];
+          text_layer_set_text(s_time_layer, "8888");
+          if (s_tick_timer_event_handle!=NULL) {
+            events_tick_timer_service_unsubscribe(s_tick_timer_event_handle);
+            s_tick_timer_event_handle=NULL;
+          }
+          Watchface_Hibernate = S_FALSE;  //if the user falls asleep while in hibernation then reset to wake when the user wakes
+/*          static char s_buffer[8];
           time_t temp = time(NULL);
           struct tm *tick_time = localtime(&temp);
           strftime(s_buffer, sizeof(s_buffer), "%H%M", tick_time);
           text_layer_set_text(s_weatherdescript_layer, s_buffer);
-          accel_tap_service_subscribe(accel_tap_handler);
-        } else if ((slept>0) && Watchface_Hibernate){// && !s_tick_timer_event_handle) {
-          if (DisplaySeconds) {
-            s_tick_timer_event_handle = events_tick_timer_service_subscribe(SECOND_UNIT, tick_handler);
-          } else {
-            s_tick_timer_event_handle = events_tick_timer_service_subscribe(MINUTE_UNIT, tick_handler);
+*/          accel_tap_service_subscribe(accel_tap_handler);
+        } else if (!sleeping && (s_tick_timer_event_handle==NULL) && !Watchface_Hibernate) {
+          if (s_tick_timer_event_handle==NULL) {
+            if (DisplaySeconds) {
+              s_tick_timer_event_handle = events_tick_timer_service_subscribe(SECOND_UNIT, tick_handler);
+            } else {
+              s_tick_timer_event_handle = events_tick_timer_service_subscribe(MINUTE_UNIT, tick_handler);
+            }
+            accel_tap_service_unsubscribe();  //do this here because having a Null tick_timer coorelates with subscribing to tap service
           }
-          accel_tap_service_unsubscribe();
           Watchface_Hibernate = S_FALSE;
-          update_steps();
-          update_time();
-          if (strlen(ReplacementWeatherMessage)==0) {
-            generic_weather_fetch(weather_callback);
-          } else {
-//            text_layer_set_text(s_weatherdescript_layer, " ");
-            text_layer_set_text(s_city_layer,ReplacementWeatherMessage);
-            text_layer_set_text(s_temperature_layer,"…");  //place the star trek comm badge
-          }
+          watchface_refresh();
+          if (HibernateEnable) {app_timer_reschedule(s_idle_timer_event_handle,TIMER_IDLE_INTERVAL_MS);}
         }
-    }
-}
-
-/*static void prv_health_event_handler(HealthEventType event, void *context) {
-    switch(event) {
-    case HealthEventSignificantUpdate: 
-      prv_health_event_handler(HealthEventSleepUpdate, context);
-//      app_timer_reschedule(s_idle_timer_event_handle,TIMER_IDLE_INTERVAL_MS);
-      break;
-    case HealthEventSleepUpdate: {
-      HealthActivityMask mask = health_service_peek_current_activities();
-      bool sleeping = (mask & HealthActivitySleep) || (mask & HealthActivityRestfulSleep);
-      if (!sleeping && !Watchface_Hibernate){// && s_tick_timer_event_handle) {
-        text_layer_set_text(s_city_layer,"Watch is Sleeping");
-        events_tick_timer_service_unsubscribe(tick_handler);
-        Watchface_Hibernate = S_TRUE;
-        static char s_buffer[8];
-        time_t temp = time(NULL);
-        struct tm *tick_time = localtime(&temp);
-        strftime(s_buffer, sizeof(s_buffer), "%H%M", tick_time);
-        text_layer_set_text(s_weatherdescript_layer, s_buffer);
-        accel_tap_service_subscribe(accel_tap_handler);
-//        app_timer_cancel(s_idle_timer_event_handle);
-//        app_timer_reschedule(s_idle_timer_event_handle, TIMER_IDLE_INTERVAL_MS*16);
-      } else if (!sleeping && Watchface_Hibernate){// && !s_tick_timer_event_handle) {
-        if (DisplaySeconds) {
-          s_tick_timer_event_handle = events_tick_timer_service_subscribe(SECOND_UNIT, tick_handler);
-        } else {
-          s_tick_timer_event_handle = events_tick_timer_service_subscribe(MINUTE_UNIT, tick_handler);
-        }
-        accel_tap_service_unsubscribe();
-        Watchface_Hibernate = S_FALSE;
-        update_steps();
-        update_time();
-        if (strlen(ReplacementWeatherMessage)==0) {
-          generic_weather_fetch(weather_callback);
-        } else {
-//          text_layer_set_text(s_weatherdescript_layer, " ");
-          text_layer_set_text(s_city_layer,ReplacementWeatherMessage);
-          text_layer_set_text(s_temperature_layer,"…");  //place the star trek comm badge
-        }
-//        if (s_idle_timer_event_handle) {
-//          app_timer_reschedule(s_idle_timer_event_handle, TIMER_IDLE_INTERVAL_MS);
-//        } else {
-//          s_idle_timer_event_handle = app_timer_register(TIMER_IDLE_INTERVAL_MS, idle_scheduler, NULL);
-//        }
-      }}
+      }
       break;
     case HealthEventMovementUpdate:
-//      app_timer_reschedule(s_idle_timer_event_handle, TIMER_IDLE_INTERVAL_MS);
+      if (HibernateEnable) {app_timer_reschedule(s_idle_timer_event_handle, TIMER_IDLE_INTERVAL_MS);}
       break;
     case HealthEventHeartRateUpdate:
 //      app_timer_reschedule(s_idle_timer_event_handle, TIMER_IDLE_INTERVAL_MS);
@@ -901,15 +844,22 @@ static void prv_health_event_handler(HealthEventType event, void *context) {
     case HealthEventMetricAlert:
       break;
     }
-}*/
+}
 
-/*static void idle_scheduler(){
-  text_layer_set_text(s_city_layer,"Watch is Idle");
-  events_tick_timer_service_unsubscribe(tick_handler);
-  Watchface_Hibernate = S_TRUE;
-  accel_tap_service_subscribe(accel_tap_handler);
-  app_timer_reschedule(s_idle_timer_event_handle, TIMER_IDLE_INTERVAL_MS);
-}*/
+static void idle_scheduler(){
+  if (HibernateEnable) {
+    text_layer_set_text(s_city_layer,"Watch is Idle");
+    text_layer_set_text(s_time_layer, "8888");
+    if (s_tick_timer_event_handle!=NULL){
+      events_tick_timer_service_unsubscribe(s_tick_timer_event_handle);
+      s_tick_timer_event_handle=NULL;
+    }
+    Watchface_Hibernate = S_TRUE;  //signifies that the watchface went idle, used so that a healthevent does not wake up the watch
+    accel_tap_service_subscribe(accel_tap_handler);
+    //prv_health_event_handler(HealthEventSleepUpdate, NULL);
+    s_idle_timer_event_handle = app_timer_register(TIMER_IDLE_INTERVAL_MS*16,idle_scheduler,NULL);  //the only time the idle handeler is used is when this function is called, so create a new one that can be rescheduled by tap handeler or something else.
+  } 
+}
 
 static void inbox_received_callback(DictionaryIterator *iterator, void *context)
 {
@@ -949,12 +899,6 @@ static void inbox_received_callback(DictionaryIterator *iterator, void *context)
 		UserStepGoal = data->value->int32;
 	}
 
-	data = dict_find(iterator, MESSAGE_KEY_MANUALSLEEPSTART);
-	if(data)
-	{
-		UserManualSleepStart = data->value->int32;
-	}
-
 	data = dict_find(iterator, MESSAGE_KEY_WEATHERREPLACEMENT);
 	if(data)
 	{
@@ -971,8 +915,7 @@ static void inbox_received_callback(DictionaryIterator *iterator, void *context)
 	if(data)
 	{
 		DisplaySeconds = data->value->int32 == 1;
-    events_tick_timer_service_unsubscribe(tick_handler);
-    //events_tick_timer_service_unsubscribe(s_tick_timer_event_handle);
+    if (s_tick_timer_event_handle!=NULL) {events_tick_timer_service_unsubscribe(s_tick_timer_event_handle);}
     if (DisplaySeconds) {
       s_tick_timer_event_handle = events_tick_timer_service_subscribe(SECOND_UNIT, tick_handler);
     } else {
@@ -995,6 +938,29 @@ static void inbox_received_callback(DictionaryIterator *iterator, void *context)
 	if(data)
 	{
 		AnimationEnabled = data->value->int32 == 1;
+	}
+
+	data = dict_find(iterator, MESSAGE_KEY_SLEEPENABLED);
+	if(data)
+	{
+		SleepEnable = data->value->int32 == 1;
+	}
+
+	data = dict_find(iterator, MESSAGE_KEY_HIBERNATEENABLED);
+	if(data)
+	{
+		HibernateEnable = data->value->int32 == 1;
+
+    events_health_service_events_unsubscribe(s_health_event_handle);
+    //register to recieve significant updates of which we are looking for sleep updates
+    if (SleepEnable||HibernateEnable) {s_health_event_handle = events_health_service_events_subscribe(prv_health_event_handler, NULL);}
+  
+    //register to detect when the watch goes idle
+    if (HibernateEnable) {
+      s_idle_timer_event_handle = app_timer_register(TIMER_IDLE_INTERVAL_MS,idle_scheduler,NULL);
+    } else {
+      app_timer_cancel(s_idle_timer_event_handle);
+    }
 	}
 
 	data = dict_find(iterator, MESSAGE_KEY_WEATHERDESCRIPTION);
@@ -1074,10 +1040,9 @@ static void inbox_received_callback(DictionaryIterator *iterator, void *context)
     else {
       text_layer_set_text(s_city_layer,ReplacementWeatherMessage);
       text_layer_set_text(s_temperature_layer,"…"); //this is the voyager com badge icon for the custom font
-//      text_layer_set_text(s_weatherdescript_layer," ");
+      text_layer_set_text(s_weatherdescript_layer," ");
       text_layer_set_text(icon_weather_layer,"M");  //blank character
     }
-prv_health_event_handler(HealthEventSleepUpdate, NULL);
   }
 }
 
@@ -1137,8 +1102,9 @@ static void window_unload(Window *window) {
   events_app_message_unsubscribe(inbox_dropped_callback);
   events_app_message_unsubscribe(outbox_failed_callback);
   events_app_message_unsubscribe(outbox_sent_callback);
+  app_timer_cancel(s_idle_timer_event_handle);
 
-    //Destroy Window
+  //Destroy Window
   window_destroy(window);
 }
 
@@ -1165,10 +1131,10 @@ static void init() {
   }
   
   //register to recieve significant updates of which we are looking for sleep updates
-  s_health_event_handle = events_health_service_events_subscribe(prv_health_event_handler, NULL);
+  if (SleepEnable||HibernateEnable) {s_health_event_handle = events_health_service_events_subscribe(prv_health_event_handler, NULL);}
   
   //register to detect when the watch goes idle
-//  s_idle_timer_event_handle = app_timer_register(TIMER_IDLE_INTERVAL_MS,idle_scheduler,NULL);
+  if (HibernateEnable) {s_idle_timer_event_handle = app_timer_register(TIMER_IDLE_INTERVAL_MS,idle_scheduler,NULL);}
   
   // Make sure the time and steps are displayed from the start
   update_steps();
