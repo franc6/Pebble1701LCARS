@@ -13,12 +13,12 @@ static char ReplacementWeatherMessage[21], userweatherprovider[7], WeekNumDisp[5
 static int s_step_count = 1, s_step_goal = 1, s_step_average = 1, prev_s_step_count = 1, UserStepGoal = 7500,s_battery_level, s_battery_charging;
 static Layer *s_battery_layer, *s_lifesupport_layer, *s_lcars_layer, *s_bt_layer, *s_warp_layer;
 static bool F_Tick = S_TRUE, PowerDisp = S_TRUE, UKDateFormat = S_FALSE, WeekdayNameDisp = S_TRUE, WeatherDescriptionDisp = S_FALSE, AnimationEnabled = S_TRUE, DisplaySeconds = S_FALSE, Watchface_Hibernate = S_FALSE, Watchface_Sleep = S_FALSE;
-static int warpsequence = 0, text_color_value =0, UserManualSleepStart=24;
+static int warpsequence = 0, text_color_value =0;
 static int loweracrossline = 90, upperacrossline = 50, textleft = 25, watchwidth=168, slept=0, TIMER_IDLE_INTERVAL=46, TIMER_INTERVAL_MS=500, Current_Min=61, Hibernate_Min=61;
 static PropertyAnimation *image_property_animation; //1800000
-static bool WeatherSetupStatusKey = S_FALSE, WeatherSetupStatusProvider = S_FALSE, HibernateEnable = S_TRUE, SleepEnable = S_TRUE;
+static bool WeatherSetupStatusKey = S_FALSE, WeatherSetupStatusProvider = S_FALSE, WeatherReadyRecieved = S_FALSE, HibernateEnable = S_TRUE, SleepEnable = S_TRUE;
 GColor text_color;
-static EventHandle s_health_event_handle, s_tick_timer_event_handle, s_idle_timer_event_handle;
+static EventHandle s_health_event_handle, s_tick_timer_event_handle;//, s_idle_timer_event_handle;
 
 static void read_persist()
 {
@@ -169,7 +169,7 @@ static void lifesupport_update_proc(Layer *layer, GContext *ctx) {
   //  graphics_fill_rect(ctx, bounds, 0, GCornerNone);
 
   graphics_context_set_fill_color(ctx, GColorBlueMoon);
-  graphics_fill_rect(ctx, GRect(0, 0, goalwidth, bounds.size.h), 0, GCornerNone);
+  graphics_fill_rect(ctx, GRect(0, bounds.size.h/2, goalwidth, bounds.size.h/2), 0, GCornerNone);
   graphics_context_set_fill_color(ctx, GColorMidnightGreen);
   graphics_fill_rect(ctx, GRect(0, 0, avgwidth, bounds.size.h/2), 0, GCornerNone);
 }
@@ -889,14 +889,39 @@ static void prv_health_event_handler(HealthEventType event, void *context) {
   } 
 }*/
 
+static void WeatherInitDeinit() {
+  if ((strlen(ReplacementWeatherMessage)==0) && (strlen(api_key)>0)) {
+    //APP_LOG(APP_LOG_LEVEL_DEBUG, "WeatherInit");
+    if (WeatherSetupStatusProvider==S_FALSE) {generic_weather_init();}
+    generic_weather_set_api_key(api_key);
+    WeatherSetupStatusKey=S_TRUE;
+    if (strcmp(userweatherprovider,"OpenWe")==0)
+      {generic_weather_set_provider(GenericWeatherProviderOpenWeatherMap);
+      WeatherSetupStatusProvider=S_TRUE;}
+    else if(strcmp(userweatherprovider,"WUnder")==0)
+      {generic_weather_set_provider(GenericWeatherProviderWeatherUnderground);
+      WeatherSetupStatusProvider=S_TRUE;}
+    else if(strcmp(userweatherprovider,"For.io")==0)
+      {generic_weather_set_provider(GenericWeatherProviderForecastIo);
+      WeatherSetupStatusProvider=S_TRUE;}
+    else
+      {APP_LOG(APP_LOG_LEVEL_DEBUG, "UNKNOWN PROVIDER: -%s-", userweatherprovider);}
+  } else if (WeatherSetupStatusProvider==S_TRUE) {
+    generic_weather_deinit();
+    WeatherSetupStatusProvider=S_FALSE;
+    WeatherReadyRecieved = S_FALSE;
+    WeatherSetupStatusKey=S_FALSE;
+    //APP_LOG(APP_LOG_LEVEL_DEBUG, "WeatherDeinit");
+  }
+}
+
 static void inbox_received_callback(DictionaryIterator *iterator, void *context)
 {
   Tuple *data = dict_find(iterator, MESSAGE_KEY_READY);
 	if(data)
 	{
   	//APP_LOG(APP_LOG_LEVEL_DEBUG, "Ready Recieved");
-    //If we just recieved a ready then we are launching the watchface.
-
+    WeatherReadyRecieved = S_TRUE;
     if (strlen(ReplacementWeatherMessage)==0) {
       if (WeatherSetupStatusKey&&WeatherSetupStatusProvider) {
         generic_weather_fetch(weather_callback);
@@ -1038,17 +1063,7 @@ static void inbox_received_callback(DictionaryIterator *iterator, void *context)
 	if(data)
 	{
     strcpy(userweatherprovider, data->value->cstring);
-    if (strcmp(userweatherprovider,"OpenWe")==0)
-      {	generic_weather_set_provider(GenericWeatherProviderOpenWeatherMap);
-       WeatherSetupStatusProvider=S_TRUE;}
-    else if(strcmp(userweatherprovider,"WUnder")==0)
-      {generic_weather_set_provider(GenericWeatherProviderWeatherUnderground);
-       WeatherSetupStatusProvider=S_TRUE;}
-  	else if(strcmp(userweatherprovider,"For.io")==0)
-      {generic_weather_set_provider(GenericWeatherProviderForecastIo);
-       WeatherSetupStatusProvider=S_TRUE;}
-    else
-      {WeatherSetupStatusProvider = S_FALSE;}
+    WeatherInitDeinit();
   }
 
 	data = dict_find(iterator, MESSAGE_KEY_WEEKNUMFORMAT);
@@ -1059,7 +1074,7 @@ static void inbox_received_callback(DictionaryIterator *iterator, void *context)
 //    APP_LOG(APP_LOG_LEVEL_DEBUG, "Inbox Updating time");
     update_time();
     if (strlen(ReplacementWeatherMessage)==0) {
-      if (WeatherSetupStatusKey&&WeatherSetupStatusProvider) {
+      if (WeatherSetupStatusKey&&WeatherSetupStatusProvider&&WeatherReadyRecieved) {
 //        APP_LOG(APP_LOG_LEVEL_DEBUG, "Calling Weather");
         generic_weather_fetch(weather_callback);
       }
@@ -1088,7 +1103,7 @@ static void outbox_failed_callback(DictionaryIterator *iterator, AppMessageResul
 
 static void outbox_sent_callback(DictionaryIterator *iterator, void *context)
 {
-	APP_LOG(APP_LOG_LEVEL_INFO, "Outbox send success!");
+	APP_LOG(APP_LOG_LEVEL_DEBUG, "Outbox send success!");
 }
 
 static void window_unload(Window *window) {
@@ -1132,7 +1147,7 @@ static void window_unload(Window *window) {
   events_app_message_unsubscribe(inbox_dropped_callback);
   events_app_message_unsubscribe(outbox_failed_callback);
   events_app_message_unsubscribe(outbox_sent_callback);
-  app_timer_cancel(s_idle_timer_event_handle);
+  //app_timer_cancel(s_idle_timer_event_handle);
 
   //Destroy Window
   window_destroy(window);
@@ -1184,22 +1199,10 @@ static void init() {
   // Register for Bluetooth connection updates
   events_connection_service_subscribe((ConnectionHandlers) {.pebble_app_connection_handler = bluetooth_callback});
 
-  // Generic Weather setup and display
-  generic_weather_init();
-  generic_weather_set_api_key(api_key);
-  if (strlen(api_key)>0) {WeatherSetupStatusKey=S_TRUE;}
-  if (strcmp(userweatherprovider,"OpenWe")==0)
-    {generic_weather_set_provider(GenericWeatherProviderOpenWeatherMap);
-    WeatherSetupStatusProvider=S_TRUE;}
-  else if(strcmp(userweatherprovider,"WUnder")==0)
-    {generic_weather_set_provider(GenericWeatherProviderWeatherUnderground);
-    WeatherSetupStatusProvider=S_TRUE;}
-	else if(strcmp(userweatherprovider,"For.io")==0)
-    {generic_weather_set_provider(GenericWeatherProviderForecastIo);
-    WeatherSetupStatusProvider=S_TRUE;}
-  else
-    {APP_LOG(APP_LOG_LEVEL_DEBUG, "UNKNOWN PROVIDER: -%s-", userweatherprovider);
-    }
+  // Generic Weather initial setup 
+  WeatherInitDeinit();
+  
+  //provision an inbox
 	events_app_message_request_inbox_size(1024);
 	events_app_message_register_inbox_received(inbox_received_callback, NULL);
 	events_app_message_register_inbox_dropped(inbox_dropped_callback, NULL);
@@ -1209,7 +1212,7 @@ static void init() {
 }
 
 static void deinit() {
-  generic_weather_deinit();
+  if (WeatherSetupStatusProvider==S_TRUE) {generic_weather_deinit();}
 	store_persist();
 }
 

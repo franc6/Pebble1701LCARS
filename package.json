@@ -88,13 +88,12 @@
         },
         "sdkVersion": "3",
         "targetPlatforms": [
-            "basalt",
-            "emery"
+            "basalt"
         ],
         "uuid": "da71a728-bf9d-4ecc-8d31-0d80775e65ae",
         "watchapp": {
             "watchface": true
         }
     },
-    "version": "2.4.0"
+    "version": "2.5.0"
 }
