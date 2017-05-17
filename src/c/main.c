@@ -248,7 +248,7 @@ static void lcars_block(Layer *layer, GContext *ctx) {
 }
 
 static void weather_callback(GenericWeatherInfo *info, GenericWeatherStatus status) {
-  if (strlen(ReplacementWeatherMessage)==0){
+  if ((strlen(ReplacementWeatherMessage)==0)&&(connection_service_peek_pebble_app_connection()==S_TRUE)){
   static char StatusTimestamp[18];
   switch(status) {
     case GenericWeatherStatusAvailable:
@@ -382,6 +382,14 @@ static void bt_update_proc(Layer *layer, GContext *ctx) {
   }
   else {
     graphics_context_set_stroke_color(ctx, GColorDarkGray);
+    text_layer_set_text(s_temperature_layer,"…"); //this is the voyager com badge icon for the custom font
+    text_layer_set_text(icon_weather_layer,"M");  //blank character
+    if (strlen(ReplacementWeatherMessage)==0) {text_layer_set_text(s_city_layer, "NoBT");}
+    if (WeatherDescriptionDisp) {
+      static char StatusTimestamp[18];
+      snprintf(StatusTimestamp,sizeof(StatusTimestamp),"NoBT@%d:%d",Current_Hour,Current_Min);
+      text_layer_set_text(s_weatherdescript_layer, StatusTimestamp);
+    }
   }
   graphics_draw_line(ctx, GPoint(10, 1), GPoint(10, 22));
   graphics_draw_line(ctx, GPoint(11, 1), GPoint(11, 22));
