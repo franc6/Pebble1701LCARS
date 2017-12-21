@@ -14,7 +14,7 @@ static int s_step_count = 1, s_step_goal = 1, s_step_average = 1, prev_s_step_co
 static Layer *s_battery_layer, *s_lifesupport_layer, *s_lcars_layer, *s_bt_layer, *s_warp_layer;
 static bool F_Tick = S_TRUE, PowerDisp = S_TRUE, UKDateFormat = S_FALSE, WeekdayNameDisp = S_TRUE, WeatherDescriptionDisp = S_FALSE, AnimationEnabled = S_TRUE, DisplaySeconds = S_FALSE, Watchface_Hibernate = S_FALSE, Watchface_Sleep = S_FALSE;
 static int warpsequence = 0, text_color_value =0;
-static int loweracrossline = 90, upperacrossline = 50, textleft = 25, watchwidth=168, slept=0, TIMER_IDLE_INTERVAL=46, TIMER_INTERVAL_MS=500, Current_Min=61, Current_Hour=24, Hibernate_Min=61;
+static int loweracrossline = 90, upperacrossline = 50, textleft = 25, watchwidth=168, /*slept=0,*/ TIMER_IDLE_INTERVAL=46, TIMER_INTERVAL_MS=500, Current_Min=61, Current_Hour=24, Hibernate_Min=61;
 static PropertyAnimation *image_property_animation; //1800000
 static bool WeatherSetupStatusKey = S_FALSE, WeatherSetupStatusProvider = S_FALSE, WeatherReadyRecieved = S_FALSE, HibernateEnable = S_TRUE, SleepEnable = S_TRUE;
 GColor text_color;
@@ -662,7 +662,7 @@ static void window_load(Window *window) {
   text_layer_set_text_color(s_stardate_layer, text_color);
   text_layer_set_text_alignment(s_stardate_layer, GTextAlignmentLeft);
   // Add it as a child layer to the Window's root layer
-  text_layer_set_text(s_stardate_layer, "Stardate     Parsecs");
+  text_layer_set_text(s_stardate_layer, "Stardate     Steps");
   layer_add_child(window_layer, text_layer_get_layer(s_stardate_layer));
   
   // Create warp engine Layer

@@ -42,6 +42,7 @@
                     "name": "LCARS_58",
                     "targetPlatforms": [
                         "basalt",
+                        "diorite",
                         "emery"
                     ],
                     "type": "font"
@@ -51,6 +52,7 @@
                     "name": "WEATHERICON_38",
                     "targetPlatforms": [
                         "basalt",
+                        "diorite",
                         "emery"
                     ],
                     "type": "font"
@@ -61,6 +63,7 @@
                     "name": "LCARS_32",
                     "targetPlatforms": [
                         "basalt",
+                        "diorite",
                         "emery"
                     ],
                     "type": "font"
@@ -70,6 +73,7 @@
                     "name": "ENTERPRISE",
                     "targetPlatforms": [
                         "basalt",
+                        "diorite",
                         "emery"
                     ],
                     "type": "bitmap"
@@ -80,6 +84,7 @@
                     "name": "TILE",
                     "targetPlatforms": [
                         "basalt",
+                        "diorite",
                         "emery"
                     ],
                     "type": "bitmap"
@@ -89,6 +94,7 @@
         "sdkVersion": "3",
         "targetPlatforms": [
             "basalt",
+            "diorite",
             "emery"
         ],
         "uuid": "d896ee7c-83e7-4956-b4db-099227b02b91",
@@ -96,5 +102,5 @@
             "watchface": true
         }
     },
-    "version": "2.7.0"
+    "version": "2.8.0"
 }
