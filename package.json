@@ -37,7 +37,7 @@
         "resources": {
             "media": [
                 {
-                    "characterRegex": "[0-9 ]",
+                    "characterRegex": "[0-9. ]",
                     "file": "fonts/LCARSGTJ3_58.ttf",
                     "name": "LCARS_58",
                     "targetPlatforms": [
