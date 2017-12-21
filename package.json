@@ -1,19 +1,19 @@
 {
-    "author": "BigMontana",
+    "author": "Tom Francis",
     "dependencies": {
         "pebble-clay": "^1.0.3",
         "pebble-events": "^1.2.0",
         "pebble-generic-weather": "^1.1.6"
     },
     "keywords": [],
-    "name": "1701d_lcars",
+    "name": "1701d_lcars_tom",
     "pebble": {
         "capabilities": [
             "location",
             "configurable",
             "health"
         ],
-        "displayName": "NCC-1701D LCARS",
+        "displayName": "NCC-1701D LCARS TOM",
         "enableMultiJS": true,
         "messageKeys": [
             "APIKEY",
@@ -88,9 +88,10 @@
         },
         "sdkVersion": "3",
         "targetPlatforms": [
-            "basalt"
+            "basalt",
+            "emery"
         ],
-        "uuid": "da71a728-bf9d-4ecc-8d31-0d80775e65ae",
+        "uuid": "d896ee7c-83e7-4956-b4db-099227b02b91",
         "watchapp": {
             "watchface": true
         }
