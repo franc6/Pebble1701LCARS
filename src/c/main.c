@@ -5,7 +5,7 @@
 
 static Window *s_main_window;
 static GFont s_time_font, s_date_font, s_weather_icon_font;
-static TextLayer *s_date_layer, *s_stardate_layer, *s_batterypercent_layer, *s_lifesupport_text_layer, *s_temperature_layer, *s_city_layer, *icon_weather_layer, *s_time_layer, *s_weekname_layer, *s_weeknum_layer, *s_weatherdescript_layer;
+static TextLayer *s_date_layer, *s_stardate_layer, *s_batterypercent_layer, *s_lifesupport_text_layer, *s_temperature_layer, *s_city_layer, *icon_weather_layer, *s_time_layer, *s_weekname_layer, *s_weeknum_layer, *s_weatherdescript_layer, *s_qt_layer;
 static BitmapLayer *s_enterprise_layer;
 static GBitmap *s_enterprise_bitmap;
 static char api_key[50];
@@ -481,6 +481,13 @@ static void window_load(Window *window) {
   layer_set_update_proc(s_bt_layer, bt_update_proc);
   layer_add_child(window_layer, s_bt_layer);
   
+  s_qt_layer = text_layer_create(GRect(3,bounds.size.h-(bounds.size.h/12+10)-22,bounds.size.w/6-3,19));
+  text_layer_set_font(s_qt_layer, fonts_get_system_font(FONT_KEY_GOTHIC_14));
+  text_layer_set_background_color(s_qt_layer, GColorClear);
+  text_layer_set_text_color(s_qt_layer, GColorBlack);
+  text_layer_set_text_alignment(s_qt_layer, GTextAlignmentCenter);
+  layer_add_child(window_layer, text_layer_get_layer(s_qt_layer));
+  
   // Create GFonts
   s_date_font = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_LCARS_32));
   s_time_font = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_LCARS_58));
@@ -749,9 +756,17 @@ static void update_steps(){
   }
 }
 
+static void update_qt(){
+  if (quiet_time_is_active()) {
+    text_layer_set_text(s_qt_layer, "QT");}
+  else {
+    text_layer_set_text(s_qt_layer, " ");}
+}
+
 static void watchface_refresh(){
   update_steps();
   update_time();
+  update_qt();
   if ((strlen(ReplacementWeatherMessage)==0)&&(connection_service_peek_pebble_app_connection()==S_TRUE)) {
     generic_weather_fetch(weather_callback);
   } else {
@@ -787,6 +802,7 @@ static void tick_handler(struct tm *tick_time, TimeUnits units_changed) {
   if (!Watchface_Hibernate && !Watchface_Sleep) {  //if we are no sleeping or hibernating
     if (tick_time->tm_sec==0) { update_steps(); }
     update_time();
+    update_qt();
     
     //every 30 minutes do the following
     if ((tick_time->tm_min % 30 == 0)&&(tick_time->tm_sec==0)) {  
@@ -1093,6 +1109,7 @@ static void inbox_received_callback(DictionaryIterator *iterator, void *context)
     update_steps();
 //    APP_LOG(APP_LOG_LEVEL_DEBUG, "Inbox Updating time");
     update_time();
+    update_qt();
     if (strlen(ReplacementWeatherMessage)==0) {
       if (WeatherSetupStatusKey&&WeatherSetupStatusProvider&&WeatherReadyRecieved) {
 //        APP_LOG(APP_LOG_LEVEL_DEBUG, "Calling Weather");
@@ -1139,6 +1156,7 @@ static void window_unload(Window *window) {
   text_layer_destroy(s_weeknum_layer);
   text_layer_destroy(s_weekname_layer);
   text_layer_destroy(s_weatherdescript_layer);
+  text_layer_destroy(s_qt_layer);
   
   // Unload GFont
   fonts_unload_custom_font(s_time_font);
@@ -1209,6 +1227,7 @@ static void init() {
   // Make sure the time and steps are displayed from the start
   update_steps();
   update_time();
+  update_qt();
 
   // Register for battery level updates
   events_battery_state_service_subscribe(battery_callback);
