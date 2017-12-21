@@ -678,7 +678,7 @@ static void update_time() {
   // Write the current hours and minutes into a buffer
   static char s_buffer[8];
   strftime(s_buffer, sizeof(s_buffer), clock_is_24h_style() ?
-                                          "%H%M" : "%I%M", tick_time);
+                                          "%H%M" : "%l%M", tick_time);
   Current_Min=tick_time->tm_min;
   Current_Hour=tick_time->tm_hour;
   // Display this time on the TextLayer
