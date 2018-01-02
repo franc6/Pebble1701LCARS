@@ -123,8 +123,12 @@ module.exports = [
         "type": "radiogroup",
         "messageKey": "WeatherProvide",
         "label": "Please select which weather provider you would like to use",
-        "defaultValue": "OpenWe",
+        "defaultValue": "YahooW",
         "options": [
+          { 
+          "label": "Yahoo Weather", 
+          "value": "YahooW" 
+          },
           { 
           "label": "OpenWeatherMap", 
           "value": "OpenWe" 
