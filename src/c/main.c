@@ -925,7 +925,7 @@ static void prv_health_event_handler(HealthEventType event, void *context) {
 
 static void WeatherInitDeinit() {
   if ((strlen(ReplacementWeatherMessage)==0) && (strlen(api_key)>0)) {
-    APP_LOG(APP_LOG_LEVEL_DEBUG, "WeatherInit: -%s-", userweatherprovider);
+    //APP_LOG(APP_LOG_LEVEL_DEBUG, "WeatherInit: -%s-", userweatherprovider);
     if (WeatherSetupStatusProvider==S_FALSE) {generic_weather_init();}
     generic_weather_set_api_key(api_key);
     WeatherSetupStatusKey=S_TRUE;
