@@ -37,9 +37,29 @@
         "resources": {
             "media": [
                 {
-                    "characterRegex": "[0-9. ]",
-                    "file": "fonts/LCARSGTJ3_58.ttf",
-                    "name": "LCARS_58",
+                    "file": "images/tile.png",
+                    "menuIcon": true,
+                    "name": "TILE",
+                    "targetPlatforms": [
+                        "basalt",
+                        "diorite",
+                        "emery"
+                    ],
+                    "type": "bitmap"
+                },
+                {
+                    "file": "images/enterprise.png",
+                    "name": "ENTERPRISE",
+                    "targetPlatforms": [
+                        "basalt",
+                        "diorite",
+                        "emery"
+                    ],
+                    "type": "bitmap"
+                },
+                {
+                    "file": "fonts/weather.ttf",
+                    "name": "WEATHERICON_38",
                     "targetPlatforms": [
                         "basalt",
                         "diorite",
@@ -48,8 +68,9 @@
                     "type": "font"
                 },
                 {
-                    "file": "fonts/weather.ttf",
-                    "name": "WEATHERICON_38",
+                    "characterRegex": "[0-9. ]",
+                    "file": "fonts/LCARSGTJ3_58.ttf",
+                    "name": "LCARS_58",
                     "targetPlatforms": [
                         "basalt",
                         "diorite",
@@ -67,27 +88,6 @@
                         "emery"
                     ],
                     "type": "font"
-                },
-                {
-                    "file": "images/enterprise.png",
-                    "name": "ENTERPRISE",
-                    "targetPlatforms": [
-                        "basalt",
-                        "diorite",
-                        "emery"
-                    ],
-                    "type": "bitmap"
-                },
-                {
-                    "file": "images/tile.png",
-                    "menuIcon": true,
-                    "name": "TILE",
-                    "targetPlatforms": [
-                        "basalt",
-                        "diorite",
-                        "emery"
-                    ],
-                    "type": "bitmap"
                 }
             ]
         },

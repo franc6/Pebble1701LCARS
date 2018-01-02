@@ -324,7 +324,7 @@ static void weather_callback(GenericWeatherInfo *info, GenericWeatherStatus stat
       break;
     case GenericWeatherStatusBluetoothDisconnected:
       text_layer_set_text(s_city_layer, "NoBT");
-      snprintf(StatusTimestamp,sizeof(StatusTimestamp),"NoBT@%d:%d",Current_Hour,Current_Min);
+      snprintf(StatusTimestamp,sizeof(StatusTimestamp),"NoBT@%02d:%02d",Current_Hour,Current_Min);
       text_layer_set_text(s_weatherdescript_layer, StatusTimestamp);
       break;
     case GenericWeatherStatusPending:
@@ -333,7 +333,7 @@ static void weather_callback(GenericWeatherInfo *info, GenericWeatherStatus stat
       break;
     case GenericWeatherStatusFailed:
       text_layer_set_text(s_city_layer, "Failed");
-      snprintf(StatusTimestamp,sizeof(StatusTimestamp),"Fail@%d:%d",Current_Hour,Current_Min);
+      snprintf(StatusTimestamp,sizeof(StatusTimestamp),"Fail@%02d:%02d",Current_Hour,Current_Min);
       text_layer_set_text(s_weatherdescript_layer, StatusTimestamp);
       break;
     case GenericWeatherStatusBadKey:
@@ -341,7 +341,7 @@ static void weather_callback(GenericWeatherInfo *info, GenericWeatherStatus stat
       break;
     case GenericWeatherStatusLocationUnavailable:
       text_layer_set_text(s_city_layer, "NoLoc");
-      snprintf(StatusTimestamp,sizeof(StatusTimestamp),"NoLoc@%d:%d",Current_Hour,Current_Min);
+      snprintf(StatusTimestamp,sizeof(StatusTimestamp),"NoLoc@%02d:%02d",Current_Hour,Current_Min);
       text_layer_set_text(s_weatherdescript_layer, StatusTimestamp);
       break;
   }}
