@@ -925,7 +925,7 @@ static void prv_health_event_handler(HealthEventType event, void *context) {
 
 static void WeatherInitDeinit() {
   if ((strlen(ReplacementWeatherMessage)==0) && (strlen(api_key)>0)) {
-    //APP_LOG(APP_LOG_LEVEL_DEBUG, "WeatherInit");
+    APP_LOG(APP_LOG_LEVEL_DEBUG, "WeatherInit: -%s-", userweatherprovider);
     if (WeatherSetupStatusProvider==S_FALSE) {generic_weather_init();}
     generic_weather_set_api_key(api_key);
     WeatherSetupStatusKey=S_TRUE;
@@ -937,6 +937,9 @@ static void WeatherInitDeinit() {
       WeatherSetupStatusProvider=S_TRUE;}
     else if(strcmp(userweatherprovider,"For.io")==0)
       {generic_weather_set_provider(GenericWeatherProviderForecastIo);
+      WeatherSetupStatusProvider=S_TRUE;}
+    else if(strcmp(userweatherprovider,"YahooW")==0)
+      {generic_weather_set_provider(GenericWeatherProviderYahooWeather);
       WeatherSetupStatusProvider=S_TRUE;}
     else
       {APP_LOG(APP_LOG_LEVEL_DEBUG, "UNKNOWN PROVIDER: -%s-", userweatherprovider);}
@@ -1191,6 +1194,7 @@ static void window_unload(Window *window) {
   events_app_message_unsubscribe(outbox_sent_callback);
   //app_timer_cancel(s_idle_timer_event_handle);
 
+  window_stack_pop(true);
   //Destroy Window
   window_destroy(window);
 }
