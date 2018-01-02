@@ -58,7 +58,7 @@
                     "type": "font"
                 },
                 {
-                    "characterRegex": "[0-9\u2026\\.]",
+                    "characterRegex": "[-0-9\u2026\\.]",
                     "file": "fonts/LCARSGTJ3_32.ttf",
                     "name": "LCARS_32",
                     "targetPlatforms": [
