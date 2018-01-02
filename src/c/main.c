@@ -18,7 +18,7 @@ static int loweracrossline = 90, upperacrossline = 50, textleft = 25, watchwidth
 static PropertyAnimation *image_property_animation; //1800000
 static bool WeatherSetupStatusKey = S_FALSE, WeatherSetupStatusProvider = S_FALSE, WeatherReadyRecieved = S_FALSE, HibernateEnable = S_TRUE, SleepEnable = S_TRUE;
 GColor text_color;
-static EventHandle s_health_event_handle, s_tick_timer_event_handle;//, s_idle_timer_event_handle;
+static EventHandle s_health_event_handle=NULL, s_tick_timer_event_handle=NULL;//, s_idle_timer_event_handle;
 
 static void read_persist()
 {
@@ -1023,7 +1023,9 @@ static void inbox_received_callback(DictionaryIterator *iterator, void *context)
 		HibernateEnable = data->value->int32 == 1;
 
     //register to recieve significant updates of which we are looking for sleep updates
-    events_health_service_events_unsubscribe(s_health_event_handle);
+    if (s_health_event_handle != NULL) {
+      events_health_service_events_unsubscribe(s_health_event_handle);
+    }
     if (SleepEnable||HibernateEnable) {
       s_health_event_handle = events_health_service_events_subscribe(prv_health_event_handler, NULL);
     }
@@ -1159,8 +1161,12 @@ static void window_unload(Window *window) {
   //unsubscribe from services
   events_battery_state_service_unsubscribe(battery_callback);
   events_connection_service_unsubscribe(bluetooth_callback);
-  events_tick_timer_service_unsubscribe(tick_handler);
-  events_health_service_events_unsubscribe(s_health_event_handle);
+  if (s_tick_timer_event_handle!=NULL) {
+    events_tick_timer_service_unsubscribe(s_tick_timer_event_handle);
+  }
+  if (s_health_event_handle != NULL) {
+    events_health_service_events_unsubscribe(s_health_event_handle);
+  }
   events_app_message_unsubscribe(inbox_received_callback);
   events_app_message_unsubscribe(inbox_dropped_callback);
   events_app_message_unsubscribe(outbox_failed_callback);
