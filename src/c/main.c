@@ -929,7 +929,10 @@ static void WeatherInitDeinit() {
     if (WeatherSetupStatusProvider==S_FALSE) {generic_weather_init();}
     generic_weather_set_api_key(api_key);
     WeatherSetupStatusKey=S_TRUE;
-    if (strcmp(userweatherprovider,"OpenWe")==0)
+    if(strcmp(userweatherprovider,"YahooW")==0)
+      {generic_weather_set_provider(GenericWeatherProviderYahooWeather);
+      WeatherSetupStatusProvider=S_TRUE;}
+    else if (strcmp(userweatherprovider,"OpenWe")==0)
       {generic_weather_set_provider(GenericWeatherProviderOpenWeatherMap);
       WeatherSetupStatusProvider=S_TRUE;}
     else if(strcmp(userweatherprovider,"WUnder")==0)
@@ -937,9 +940,6 @@ static void WeatherInitDeinit() {
       WeatherSetupStatusProvider=S_TRUE;}
     else if(strcmp(userweatherprovider,"For.io")==0)
       {generic_weather_set_provider(GenericWeatherProviderForecastIo);
-      WeatherSetupStatusProvider=S_TRUE;}
-    else if(strcmp(userweatherprovider,"YahooW")==0)
-      {generic_weather_set_provider(GenericWeatherProviderYahooWeather);
       WeatherSetupStatusProvider=S_TRUE;}
     else
       {APP_LOG(APP_LOG_LEVEL_DEBUG, "UNKNOWN PROVIDER: -%s-", userweatherprovider);}
