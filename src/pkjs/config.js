@@ -138,7 +138,7 @@ module.exports = [
           "value": "WUnder" 
           },
           { 
-          "label": "Forecast.io", 
+          "label": "Dark Sky/Forecast.io", 
           "value": "For.io" 
           }]
       },
