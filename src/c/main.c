@@ -12,13 +12,14 @@ static char api_key[50];
 static char ReplacementWeatherMessage[21], userweatherprovider[7], WeekNumDisp[5], battery_text[] = "Pwr:100%", DateFormatter[]="%m%d%y.";
 static int s_step_count = 1, s_step_goal = 1, s_step_average = 1, prev_s_step_count = 1, UserStepGoal = 7500,s_battery_level, s_battery_charging;
 static Layer *s_battery_layer, *s_lifesupport_layer, *s_lcars_layer, *s_bt_layer, *s_warp_layer;
-static bool F_Tick = S_TRUE, PowerDisp = S_TRUE, UKDateFormat = S_FALSE, WeekdayNameDisp = S_TRUE, WeatherDescriptionDisp = S_FALSE, AnimationEnabled = S_TRUE, DisplaySeconds = S_FALSE, Watchface_Hibernate = S_FALSE, Watchface_Sleep = S_FALSE;
+static bool F_Tick = S_TRUE, PowerDisp = S_TRUE, UKDateFormat = S_FALSE, WeekdayNameDisp = S_TRUE, WeatherDescriptionDisp = S_FALSE, AnimationEnabled = S_TRUE, Watchface_Hibernate = S_FALSE, Watchface_Sleep = S_FALSE;
 static int warpsequence = 0, text_color_value =0;
 static int loweracrossline = 90, upperacrossline = 50, textleft = 25, watchwidth=168, /*slept=0,*/ TIMER_IDLE_INTERVAL=46, TIMER_INTERVAL_MS=500, Current_Min=61, Current_Hour=24, Hibernate_Min=61;
 static PropertyAnimation *image_property_animation; //1800000
 static bool WeatherSetupStatusKey = S_FALSE, WeatherSetupStatusProvider = S_FALSE, WeatherReadyRecieved = S_FALSE, HibernateEnable = S_TRUE, SleepEnable = S_TRUE;
 GColor text_color;
 static EventHandle s_health_event_handle=NULL, s_tick_timer_event_handle=NULL;//, s_idle_timer_event_handle;
+static TimeUnits units = MINUTE_UNIT;
 
 static void read_persist()
 {
@@ -35,7 +36,10 @@ static void read_persist()
 		F_Tick = persist_read_bool(MESSAGE_KEY_FTICK);
 	}
 	if(persist_exists(MESSAGE_KEY_DISPLAYSECONDS)) {
-		DisplaySeconds = persist_read_bool(MESSAGE_KEY_DISPLAYSECONDS);
+		if (persist_read_bool(MESSAGE_KEY_DISPLAYSECONDS))
+			units = SECOND_UNIT;
+		else
+			units = MINUTE_UNIT;
 	}
 	if(persist_exists(MESSAGE_KEY_UKDATE)) 	{
 		UKDateFormat = persist_read_bool(MESSAGE_KEY_UKDATE);
@@ -74,7 +78,7 @@ static void store_persist()
 	persist_write_string(MESSAGE_KEY_APIKEY, api_key);
 	persist_write_string(MESSAGE_KEY_WEATHERREPLACEMENT, ReplacementWeatherMessage);
   persist_write_bool(MESSAGE_KEY_FTICK, F_Tick);
-  persist_write_bool(MESSAGE_KEY_DISPLAYSECONDS, DisplaySeconds);
+  persist_write_bool(MESSAGE_KEY_DISPLAYSECONDS, units == SECOND_UNIT);
   persist_write_bool(MESSAGE_KEY_UKDATE, UKDateFormat);
   persist_write_bool(MESSAGE_KEY_WEATHERDESCRIPTION, WeatherDescriptionDisp);
   persist_write_bool(MESSAGE_KEY_WEEKDAYNAME, WeekdayNameDisp);
@@ -714,7 +718,7 @@ static void update_time() {
   static char date_step_buffer[16];
   // Copy date into buffer from tm structure
   strftime(date_buffer, sizeof(date_buffer), DateFormatter, tick_time);
-  if (DisplaySeconds) {
+  if (units == SECOND_UNIT) {
     static char s_seconds_buffer[3];
     strftime(s_seconds_buffer,sizeof(s_seconds_buffer),"%S",tick_time);
     snprintf(date_step_buffer,sizeof(date_step_buffer),"%s%s",date_buffer,s_seconds_buffer);
@@ -784,11 +788,7 @@ static void accel_tap_handler(AccelAxisType axis, int32_t direction) {
   accel_tap_service_unsubscribe();
   watchface_refresh();
   /*if (s_tick_timer_event_handle==NULL) {
-    if (DisplaySeconds) {
-      s_tick_timer_event_handle = events_tick_timer_service_subscribe(SECOND_UNIT, tick_handler);
-    } else {
-      s_tick_timer_event_handle = events_tick_timer_service_subscribe(MINUTE_UNIT, tick_handler);
-    }
+		s_tick_timer_event_handle = events_tick_timer_service_subscribe(units, tick_handler);
   }*/
   if (HibernateEnable) {
     //app_timer_reschedule(s_idle_timer_event_handle,TIMER_IDLE_INTERVAL_MS);
@@ -871,10 +871,7 @@ static void prv_health_event_handler(HealthEventType event, void *context) {
 //        } else if (!sleeping && (s_tick_timer_event_handle==NULL) && !Watchface_Hibernate) {
         } else if (!sleeping && !Watchface_Hibernate) {
           /*if (s_tick_timer_event_handle==NULL) {
-            if (DisplaySeconds) {
-              s_tick_timer_event_handle = events_tick_timer_service_subscribe(SECOND_UNIT, tick_handler);
-            } else {
-              s_tick_timer_event_handle = events_tick_timer_service_subscribe(MINUTE_UNIT, tick_handler);
+						s_tick_timer_event_handle = events_tick_timer_service_subscribe(units, tick_handler);
             }*/
           accel_tap_service_unsubscribe();  //do this here because having a Null tick_timer coorelates with subscribing to tap service
           Watchface_Sleep = S_FALSE;
@@ -1006,13 +1003,12 @@ static void inbox_received_callback(DictionaryIterator *iterator, void *context)
 	data = dict_find(iterator, MESSAGE_KEY_DISPLAYSECONDS);
 	if(data)
 	{
-		DisplaySeconds = data->value->int32 == 1;
+		if (data->value->int32 == 1)
+			units = SECOND_UNIT;
+		else
+			units = MINUTE_UNIT;
     if (s_tick_timer_event_handle!=NULL) {events_tick_timer_service_unsubscribe(s_tick_timer_event_handle);}
-    if (DisplaySeconds) {
-      s_tick_timer_event_handle = events_tick_timer_service_subscribe(SECOND_UNIT, tick_handler);
-    } else {
-      s_tick_timer_event_handle = events_tick_timer_service_subscribe(MINUTE_UNIT, tick_handler);
-    }
+		s_tick_timer_event_handle = events_tick_timer_service_subscribe(units, tick_handler);
   }
 
 	data = dict_find(iterator, MESSAGE_KEY_UKDATE);
@@ -1217,11 +1213,7 @@ static void init() {
   read_persist();
 
   // Register with TickTimerService
-  if (DisplaySeconds) {
-    s_tick_timer_event_handle = events_tick_timer_service_subscribe(SECOND_UNIT, tick_handler);
-  } else {
-    s_tick_timer_event_handle = events_tick_timer_service_subscribe(MINUTE_UNIT, tick_handler);
-  }
+	s_tick_timer_event_handle = events_tick_timer_service_subscribe(units, tick_handler);
   
   //register to recieve significant updates of which we are looking for sleep updates
   if (SleepEnable||HibernateEnable) {s_health_event_handle = events_health_service_events_subscribe(prv_health_event_handler, NULL);}
