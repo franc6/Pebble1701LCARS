@@ -5,7 +5,7 @@
 
 static Window *s_main_window;
 static GFont s_time_font, s_date_font, s_weather_icon_font;
-static TextLayer *s_date_layer, *s_stardate_layer, *s_batterypercent_layer, *s_lifesupport_text_layer, *s_temperature_layer, *s_city_layer, *icon_weather_layer, *s_time_layer, *s_weekname_layer, *s_weeknum_layer, *s_weatherdescript_layer, *s_qt_layer;
+static TextLayer *s_date_layer, *s_stardate_layer, *s_batterypercent_layer, *s_lifesupport_text_layer, *s_temperature_layer, *s_city_layer, *icon_weather_layer, *s_time_layer, *s_weekname_layer, *s_weeknum_layer, *s_weatherdescript_layer, *s_qt_layer, *s_doy_layer;
 static BitmapLayer *s_enterprise_layer;
 static GBitmap *s_enterprise_bitmap;
 static char api_key[50];
@@ -16,7 +16,7 @@ static bool F_Tick = S_TRUE, PowerDisp = S_TRUE, UKDateFormat = S_FALSE, Weekday
 static int warpsequence = 0, text_color_value =0;
 static int loweracrossline = 90, upperacrossline = 50, textleft = 25, watchwidth=168, /*slept=0,*/ TIMER_IDLE_INTERVAL=46, TIMER_INTERVAL_MS=500, Current_Min=61, Current_Hour=24, Hibernate_Min=61;
 static PropertyAnimation *image_property_animation; //1800000
-static bool WeatherSetupStatusKey = S_FALSE, WeatherSetupStatusProvider = S_FALSE, WeatherReadyRecieved = S_FALSE, HibernateEnable = S_TRUE, SleepEnable = S_TRUE;
+static bool WeatherSetupStatusKey = S_FALSE, WeatherSetupStatusProvider = S_FALSE, WeatherReadyRecieved = S_FALSE, HibernateEnable = S_TRUE, SleepEnable = S_TRUE, DayOfYear = S_FALSE;
 GColor text_color;
 static EventHandle s_health_event_handle=NULL, s_tick_timer_event_handle=NULL;//, s_idle_timer_event_handle;
 static TimeUnits units = MINUTE_UNIT;
@@ -67,6 +67,12 @@ static void read_persist()
 	if(persist_exists(MESSAGE_KEY_WeatherProvide)) {
 		persist_read_string(MESSAGE_KEY_WeatherProvide, userweatherprovider, sizeof(userweatherprovider));
 	}
+	if(persist_exists(MESSAGE_KEY_DISPLAYDOY)) {
+		if (persist_read_bool(MESSAGE_KEY_DISPLAYDOY))
+			DayOfYear = S_TRUE;
+		else
+			DayOfYear = S_FALSE;
+	}
 	if(persist_exists(MESSAGE_KEY_WEEKNUMFORMAT)) {
 		persist_read_string(MESSAGE_KEY_WEEKNUMFORMAT, WeekNumDisp, sizeof(WeekNumDisp));
 	}
@@ -87,6 +93,7 @@ static void store_persist()
   persist_write_bool(MESSAGE_KEY_SLEEPENABLED, SleepEnable);
   persist_write_bool(MESSAGE_KEY_HIBERNATEENABLED, HibernateEnable);
 	persist_write_string(MESSAGE_KEY_WeatherProvide, userweatherprovider);
+	persist_write_bool(MESSAGE_KEY_DISPLAYDOY, DayOfYear);
 	persist_write_string(MESSAGE_KEY_WEEKNUMFORMAT, WeekNumDisp);
   if (text_color_value >0) { persist_write_int(MESSAGE_KEY_TEXTCOLOR, text_color_value); }
 }
@@ -485,7 +492,16 @@ static void window_load(Window *window) {
   layer_set_update_proc(s_bt_layer, bt_update_proc);
   layer_add_child(window_layer, s_bt_layer);
   
+  s_doy_layer = text_layer_create(GRect(3,bounds.size.h-(bounds.size.h/12+10)-39,bounds.size.w/6-3,19));
+  text_layer_set_font(s_doy_layer, fonts_get_system_font(FONT_KEY_GOTHIC_14));
+  text_layer_set_background_color(s_doy_layer, GColorClear);
+  text_layer_set_text_color(s_doy_layer, GColorBlack);
+  text_layer_set_text_alignment(s_doy_layer, GTextAlignmentCenter);
+  layer_add_child(window_layer, text_layer_get_layer(s_doy_layer));
+  
+
   s_qt_layer = text_layer_create(GRect(3,bounds.size.h-(bounds.size.h/12+10)-22,bounds.size.w/6-3,19));
+
   text_layer_set_font(s_qt_layer, fonts_get_system_font(FONT_KEY_GOTHIC_14));
   text_layer_set_background_color(s_qt_layer, GColorClear);
   text_layer_set_text_color(s_qt_layer, GColorBlack);
@@ -728,6 +744,13 @@ static void update_time() {
   }
   // Show the stardate
   text_layer_set_text(s_date_layer, date_step_buffer);
+
+  if (DayOfYear == S_TRUE)
+  {
+    static char s_doy[4];
+    strftime(s_doy, sizeof(s_doy), "%j", tick_time);
+    text_layer_set_text(s_doy_layer, s_doy);
+  }
 }
 
 static void update_steps(){
@@ -1103,6 +1126,12 @@ static void inbox_received_callback(DictionaryIterator *iterator, void *context)
     WeatherInitDeinit();
   }
 
+	data = dict_find(iterator, MESSAGE_KEY_DISPLAYDOY);
+	if(data)
+	{
+		DayOfYear = data->value->int32 == 1;
+	}
+
 	data = dict_find(iterator, MESSAGE_KEY_WEEKNUMFORMAT);
 	if(data)
 	{  //all setting are set each time the user saves settings.  Since this is the last one refresh all displays so their new settings.
@@ -1157,6 +1186,7 @@ static void window_unload(Window *window) {
   text_layer_destroy(s_weeknum_layer);
   text_layer_destroy(s_weekname_layer);
   text_layer_destroy(s_weatherdescript_layer);
+  text_layer_destroy(s_doy_layer);
   text_layer_destroy(s_qt_layer);
   
   // Unload GFont

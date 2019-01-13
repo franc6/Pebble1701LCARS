@@ -31,7 +31,8 @@
             "DISPLAYSECONDS",
             "TEXTCOLOR",
             "HIBERNATEENABLED",
-            "SLEEPENABLED"
+            "SLEEPENABLED",
+            "DISPLAYDOY"
         ],
         "projectType": "native",
         "resources": {
@@ -79,7 +80,7 @@
                     "type": "font"
                 },
                 {
-                    "characterRegex": "[-0-9\u2026\\.]",
+                    "characterRegex": "[-0-9…\\.]",
                     "file": "fonts/LCARSGTJ3_32.ttf",
                     "name": "LCARS_32",
                     "targetPlatforms": [

@@ -1,7 +1,7 @@
 module.exports = [
   {
     "type": "heading",
-    "defaultValue": "NCC-1701 LCARS Settings"
+    "defaultValue": "NCC-1701 LCARS TOM Settings"
   },
     {
     "type": "section",
@@ -63,6 +63,12 @@ module.exports = [
           "label": "Week number using the first Monday as the first week", 
           "value": "%W"
           }]
+      },
+      {
+        "type": "toggle",
+        "messageKey": "DISPLAYDOY",
+        "label": "Display day of year?",
+        "defaultValue": false
       },
       {
         "type": "slider",
