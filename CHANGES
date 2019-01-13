@@ -1,0 +1,23 @@
+Fixed the 12-hour clock to display a single digit for hours 1 - 9
+
+Added ability to show quiet time
+
+Modified to have separate settings from the original LCARS1701 watchface
+
+Changed "Parsecs" to "Steps"
+
+Fixed display of negative temperatures
+
+Added Yahoo Weather and allowed it to work without an API key
+
+Fixed crash when switching away from watchface or changing watchfaces
+
+Fixed failure time display to show 2 digits, so 7:05am can be distinguished
+from 7:05pm.  Original code would show "7:5" for both.  New display shows
+"7:05" for am, and "19:05" for pm.
+
+Changed to show "Dark Sky" name for forecast.io
+
+Simplified code to track the display of seconds as a value we can use directly.
+
+Added optional display of the "day of year"

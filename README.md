@@ -11,12 +11,15 @@ This watchface displays:
 
 -The watchface will also display the battery life as a numerical value, you can configure to hide this if you wish
 
--The watchface uses the user created pebble-generic-weather library to get weather from Wunderground, Forcast.io, and OpenWeatherMap and you will need to sign up at https://www.wunderground.com/weather/api/d/docs, https://developer.forecast.io/, or http://openweathermap.org/appid to obtain a free API key. The API key is to be entered on the watchface settings page
+-The watchface uses the user created pebble-generic-weather library to get weather from Wunderground, Dark Sky (Forecast.io), OpenWeatherMap, and Yahoo.  You will need to sign up at https://www.wunderground.com/weather/api/d/docs, https://developer.forecast.io/, or http://openweathermap.org/appid to obtain a free API key. The API key is to be entered on the watchface settings page.  No API key is needed for Yahoo.  Yahoo weather support enabled by TOM.
 
 -The current time
 
 -A life support bar that indicates your progress to meeting either your instanteous average steps or your daily steps
 
+-Quiet time status (added by TOM)
+
+-Option to display the day of year (added by TOM)
 
 
 Thank you to:
@@ -29,3 +32,4 @@ https://github.com/gregoiresage for the pebble-generic-weather library.  Always 
 
 https://github.com/orviwan for the pebble-clay library
 
+See also the CHANGES file for a brief list of all changes from the version by ddwatson.
