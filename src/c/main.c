@@ -493,7 +493,7 @@ static void window_load(Window *window) {
   layer_add_child(window_layer, s_bt_layer);
   
   s_doy_layer = text_layer_create(GRect(3,bounds.size.h-(bounds.size.h/12+10)-39,bounds.size.w/6-3,19));
-  text_layer_set_font(s_doy_layer, fonts_get_system_font(FONT_KEY_GOTHIC_14));
+  text_layer_set_font(s_doy_layer, fonts_get_system_font(FONT_KEY_GOTHIC_14_BOLD));
   text_layer_set_background_color(s_doy_layer, GColorClear);
   text_layer_set_text_color(s_doy_layer, GColorBlack);
   text_layer_set_text_alignment(s_doy_layer, GTextAlignmentCenter);
@@ -502,7 +502,7 @@ static void window_load(Window *window) {
 
   s_qt_layer = text_layer_create(GRect(3,bounds.size.h-(bounds.size.h/12+10)-22,bounds.size.w/6-3,19));
 
-  text_layer_set_font(s_qt_layer, fonts_get_system_font(FONT_KEY_GOTHIC_14));
+  text_layer_set_font(s_qt_layer, fonts_get_system_font(FONT_KEY_GOTHIC_14_BOLD));
   text_layer_set_background_color(s_qt_layer, GColorClear);
   text_layer_set_text_color(s_qt_layer, GColorBlack);
   text_layer_set_text_alignment(s_qt_layer, GTextAlignmentCenter);
@@ -641,7 +641,7 @@ static void window_load(Window *window) {
   //s_weekname_layer = text_layer_create(GRect(3,0,21,16));
   // Apply to TextLayer
 //  if (bounds.size.w==144) {
-    text_layer_set_font(s_weekname_layer, fonts_get_system_font(FONT_KEY_GOTHIC_14));
+    text_layer_set_font(s_weekname_layer, fonts_get_system_font(FONT_KEY_GOTHIC_14_BOLD));
 //  } else {
 //    text_layer_set_font(s_weekname_layer, fonts_get_system_font(FONT_KEY_GOTHIC_18));
 //  }
@@ -657,7 +657,7 @@ static void window_load(Window *window) {
   //s_weeknum_layer = text_layer_create(GRect(3,16,21,15));
   // Apply to TextLayer
 //  if (bounds.size.w==144) {
-    text_layer_set_font(s_weeknum_layer, fonts_get_system_font(FONT_KEY_GOTHIC_14));
+    text_layer_set_font(s_weeknum_layer, fonts_get_system_font(FONT_KEY_GOTHIC_14_BOLD));
 //  } else {
 //    text_layer_set_font(s_weeknum_layer, fonts_get_system_font(FONT_KEY_GOTHIC_18));
 //  }
@@ -726,7 +726,7 @@ static void update_time() {
     static char s_weeknum[3];
     static char s_weeknum1[4];
     strftime(s_weeknum, sizeof(s_weeknum), WeekNumDisp, tick_time);
-    snprintf(s_weeknum1,sizeof(s_weeknum1),"#%s",s_weeknum);
+    snprintf(s_weeknum1,sizeof(s_weeknum1),"%s",s_weeknum);
     text_layer_set_text(s_weeknum_layer, s_weeknum1);}
 
   //char string to hold the date and step for the stardate value
