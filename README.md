@@ -33,3 +33,6 @@ https://github.com/gregoiresage for the pebble-generic-weather library.  Always 
 https://github.com/orviwan for the pebble-clay library
 
 See also the CHANGES file for a brief list of all changes from the version by ddwatson.
+
+[![Buy me some pizza](https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png)](https://www.buymeacoffee.com/qpunYPZx5)
+A
